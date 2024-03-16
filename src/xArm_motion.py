@@ -11,6 +11,10 @@ from xarm.wrapper import XArmAPI
 #Perception
 from stalk_detect.srv import GetStalk
 
+#Manipulation
+from nimo_manipulation.srv import (arc_move, go2corn, go2EM, home_pos, hook, unhook)
+
+
 '''
 Services involved in this package:
 1. arc_move
@@ -28,6 +32,13 @@ class xArm_Motion():
             rospy.loginfo('Starting xArm_motion node.')
         rospy.loginfo("Creating xArm_Wrapper for ip: {ip_addr} ----")
         self.ip = ip_addr
+
+        self.get_xArm_service = rospy.Service('home_pos', home_pos, self.home_pos)
+        self.get_xArm_service = rospy.Service('home_pos', arc_move, self.arc_motion)
+        self.get_xArm_service = rospy.Service('home_pos', go2corn, self.go2corn)
+        self.get_xArm_service = rospy.Service('home_pos', go2EM, self.go2EM)
+        self.get_xArm_service = rospy.Service('home_pos', hook, self.hook)
+        self.get_xArm_service = rospy.Service('home_pos', unhook, self.unhook)
 
         if VERBOSE:
             rospy.loginfo('Waiting for service calls...')
@@ -47,7 +58,6 @@ class xArm_Motion():
         if VERBOSE:
             rospy.loginfo('Going to Home Position')
 
-        self.get_xArm_service = rospy.Service('home_pos', home_pos, )
         self.arm.set_servo_angle(angle=[0, -90, 0, 0, 0, 0], is_radian=False, wait=True)
 
     @classmethod
@@ -58,18 +68,36 @@ class xArm_Motion():
 
     @classmethod
     def go2EM(self):
-        if VERBOSE: 
-            rospy.loginfo("Going to External Mechnanisms")
+        '''
+        xArm moves to the external mechanisms nozzles based on the ID number:
+
+        Parameters:
+            The request: req(get_xArm_service)
+                - id = id number of the nozzle to move to
+                     = id=1 -> water nozzle
+                       id=2 -> lowconc nozzle
+                       id=3 -> highconc nozzle
+        
+        Returns:
+                - status = xArm status
+
+        '''
+    
+        if VERBOSE: rospy.loginfo("Going to External Mechnanisms")
         self.go2EM()
 
+        if self.id == 1:
+            print("hi")
+
+        # TODO: ID=1
         print(f"---- going to cleaning nozzle ----")
         ### TODO: MODIFY THIS TO INCLUDE NEW CODE FROM AMIGA ###
         self.arm.set_servo_angle(angle=[-133.6, 56.9, -53.4, 46, -85.6, 0], is_radian=False, wait=True)
-        ### TODO: MODIFY THIS TO INCLUDE NEW CODE FROM AMIGA ###
 
         print(f"---- going to calibration nozzles ----")
-        ### TODO: MODIFY THIS TO INCLUDE NEW CODE FROM AMIGA ###
+        # TODO: ID=2
         self.arm.set_servo_angle(angle=[-118.3, 60.2, -69.9, 62.8, -77.9, -13.2], is_radian=False, wait=True)
+        # TODO: ID=3
         self.arm.set_servo_angle(angle=[-110.4, 75.9, -107.8, 73, -74.5, -33.8], is_radian=False, wait=True)
         ### TODO: MODIFY THIS TO INCLUDE NEW CODE FROM AMIGA ###
 
