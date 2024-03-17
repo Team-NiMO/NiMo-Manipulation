@@ -1,5 +1,6 @@
 # grasp point
-
----
+float64[] g
 #insertion angle
 uint32 angle
+---
+string status
