@@ -37,7 +37,7 @@ class xArm_Motion():
         # Init the tf Buffer counter to store transforms from the corn to the end effector
         self.counter = 0
 
-        # self.initialize_xarm()
+        self.initialize_xarm()
 
         try:
             self.get_xArm_service = rospy.Service('home_pos', home_pos, self.home_pos)
@@ -153,72 +153,130 @@ class xArm_Motion():
         Returns:
                 - angle = best insertion angle for insertion
         '''
+
+        # ---------------------------------------------------------------------------------------------------------
+        # ---------------------------------------------------------------------------------------------------------
+        '''
+        ### Init + Frame Transforms for the xArm6
+        '''
+        grasp = req.g
+
+        #Add: transformation to TF tree
+        broadcaster = tf2_ros.StaticTransformBroadcaster()
+        static_transformStamped = geometry_msgs.msg.TransformStamped()
+
+        #TF header reference
+        ## used to add a frame "child_frame" for the camera that is of a quaternion offset from "parent_link"
+        # FORMAT: sendTransform((x, y, z), (r_x, r_y, r_z, r_w), rospy.Time.now(), "child_frame", "parent_link")
+        # frame is that of the cornstalk?? -- #TODO:CONFIRM THIS
+
+        #TF header
+        static_transformStamped.header.stamp = rospy.Time.now() # time at which the pose has been received
+        static_transformStamped.header.frame_id = "camera_link" # parent_link
+        static_transformStamped.child_frame_id = "corn_cam" # child_link
+        print("child frame: ", static_transformStamped.child_frame_id)
+        
+        #TF position -> TODO: check with Mark
+        static_transformStamped.transform.translation.x = grasp[0] # z in OpenCV frame
+        static_transformStamped.transform.translation.y = grasp[1] # x in OpenCV frame
+        static_transformStamped.transform.translation.z = grasp[2] # y in OpenCV frame
+        # Setting the translation terms to be that of the cornstalk grasp points
+
+        #TF quaternion
+        static_transformStamped.transform.rotation.x = 0.0
+        static_transformStamped.transform.rotation.y = 0.0
+        static_transformStamped.transform.rotation.z = 0.0
+        static_transformStamped.transform.rotation.w = 1.0
+
+        # Add the corn_cam link at an offset from the "camera_link"
+        broadcaster.sendTransform(static_transformStamped)
+        time.sleep(1)
+
+        self.transform()
+        # ---------------------------------------------------------------------------------------------------------
+
         rospy.loginfo("Going to hook the cornstalk")
 
-        self.transform(req.g)
-
-
+        print("Going to plane")
+        self.arm.set_servo_angle(angle=[0, -78.4, -21.1, 0, 10.4, 0], is_radian=False, wait=True)
         
+        #0. move away from corn to prevent hitting during rotation
+        #1. pivot to face corn
+        print("Going to rotated camera plane")
+        print(" ---- move Y away to prevent hitting corn during rotation  ----")
+        self.arm.set_position_aa(axis_angle_pose=[0, 35, 0, 0, 0, 0], relative=True, wait=True)
+        print(" ---- rotating EE -90 deg Y  ----")
+        self.arm.set_position_aa(axis_angle_pose=[0, 0, 0, 0, 0, -90], relative=True, wait=True)
 
+        # receive translation values for xArm6
+        move = self.transform_lookup()
+
+        #3. move to corn position using the trans value
+        # self.go_to_stalk_pose(move[0], move[1], move[2])
+        
+        #TODO: Modify the variable names
+        x_mm, y_mm, z_mm = move[0], move[1], move[2]
+
+        # Tuned by Mark's implementation for a static environment
+        x_mm_tuned_offset = 29
+
+        #80mm is roughly center of gripper to edge of C clamp, 5 is fine-tuned offset
+        x_mm_gripper_width = 80+5 
+        x_mm_with_gripper_offest = x_mm + x_mm_gripper_width + x_mm_tuned_offset
+
+        y_mm_tuned_offset = -32
+        print(f"x_mm, x_mm_with_gripper_offest {x_mm, x_mm_with_gripper_offest}")
+
+        # x_mm_deeper_clamp_insert = 14
+        # x_mm_deeper_clamp_retract = 25
+
+        z_mm_tuned = z_mm
+
+        y_mm_overshoot = 8
+        # y_mm_funnel = 12
+
+        print(" ---- going to stalk pose  ----")
+
+        print(" 1. move X align 1/10 ")
+        self.arm.set_position_aa(axis_angle_pose=[x_mm_with_gripper_offest, 0, 0, 0, 0, 0], relative=True, wait=True)
+        print(" 2. move Y approach  2/10")
+        self.arm.set_position_aa(axis_angle_pose=[0, y_mm+y_mm_tuned_offset, 0, 0, 0, 0], relative=True, wait=True)
+        
+        print(" 2.5 move Y to compensate overshoot  2.5/10")
+        self.arm.set_position_aa(axis_angle_pose=[0, y_mm_overshoot, 0, 0, 0, 0], relative=True, wait=True)
+        
+        print(" 3. move Z to down 3/10 with z: {z_mm_tuned}")
+        self.arm.set_position_aa(axis_angle_pose=[0, 0, z_mm_tuned, 0, 0, 0], relative=True, wait=True)
+
+        time.sleep(1)
+        
         print("grasp points:", req.g)
         print("\ninsertion angle:", req.angle)
 
         return hookResponse(status="Hooked cornstalk")
     
     @classmethod
-    def transform(self, grasp):
+    def transform(self):
         # grasp is an array [x,y,z] grasp point from the request
-        if self.counter < 1:
-            self.counter += 1
-            rospy.loginfo("Executing transforms from corn to end-effector")
-
-            #Add: transformation to TF tree
-            broadcaster = tf2_ros.StaticTransformBroadcaster()
-            static_transformStamped = geometry_msgs.msg.TransformStamped()
-
-            #TF header reference
-            ## used to add a frame "child_frame" for the camera that is of a quaternion offset from "parent_link"
-            # FORMAT: sendTransform((x, y, z), (r_x, r_y, r_z, r_w), rospy.Time.now(), "child_frame", "parent_link")
-            # frame is that of the cornstalk?? -- #TODO:CONFIRM THIS
-
-            #TF header
-            static_transformStamped.header.stamp = rospy.Time.now() # time at which the pose has been received
-            static_transformStamped.header.frame_id = "camera_link" # parent_link
-            static_transformStamped.child_frame_id = "corn_cam" # child_link
-
-            #TF position
-            static_transformStamped.transform.translation.x = grasp[0]  
-            static_transformStamped.transform.translation.y = grasp[1]
-            static_transformStamped.transform.translation.z = grasp[2] # Setting this translation terms to be that of the cornstalk grasp points
-
-            #TF quaternion
-            static_transformStamped.transform.rotation.x = 0.0
-            static_transformStamped.transform.rotation.y = 0.0
-            static_transformStamped.transform.rotation.z = 0.0
-            static_transformStamped.transform.rotation.w = 1.0
-
-            # Add the corn_cam link at an offset from the "camera_link"
-            broadcaster.sendTransform(static_transformStamped)
-
-            time.sleep(1)
-            # DO REQ_DETECT AGAIN
+        
+        rospy.loginfo("Executing transforms from corn to end-effector")
 
         # if self.counter > 1 else: transition to next state
         # lookup TF transformation from corn to end effector
-        tfBuffer = tf2_ros.Buffer()
-        listener = tf2_ros.TransformListener(tfBuffer)
+        tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
+        tf2_ros.TransformListener(tfBuffer)
 
         tf_lookup_done = False
 
         while not tf_lookup_done:
             try:
-                trans = tfBuffer.lookup_transform('world', 'corn_cam', rospy.Time())
-                tf_lookup_done = True
+                trans = tfBuffer.lookup_transform('world', 'corn_cam', rospy.Time(), rospy.Duration(3.0))
                 print(f" ******** TF lookup done ******** ")
+                tf_lookup_done = True
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-                # print(f" ******** TF lookup error ******** ")
+                print(f" ******** TF lookup error ******** ")
                 tf_lookup_done = False
-
+            
             print(f" TF transformation trans x: {trans.transform.translation.x}, y: {trans.transform.translation.y}, z: {trans.transform.translation.z}")
 
             #publish TF for world to corn_cam
@@ -245,6 +303,46 @@ class xArm_Motion():
             time.sleep(1)
             # No return value: #DO GO2_CORN
 
+    @classmethod
+    def transform_lookup(self):
+        tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
+        tf2_ros.TransformListener(tfBuffer)
+        tf_lookup_done = False
+
+        while not tf_lookup_done:
+            try:
+                trans = tfBuffer.lookup_transform('gripper', 'corn', rospy.Time())
+                tf_lookup_done = True
+                print(f" ******** TF lookup done ******** ")
+            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+                print(f" ******** TF lookup error ******** ")
+                tf_lookup_done = False
+
+        print("need to translate : {trans.transform.translation}")
+        x = trans.transform.translation.x
+        y = trans.transform.translation.y
+        z = trans.transform.translation.z
+
+        # reject spurious cam pose by thresholding Y
+        if y > -0.10 or y < -0.75:
+            rospy.loginfo(" ******** ERROR: GARBAGE CAM DETECTION. WAITING FOR SERVICE *******")
+            return hookResponse(status="Wait")
+        
+        else:
+            #hard coded for initial mock test setup
+            x = -0.03628206015960567
+            y = -0.1458352749289401
+            z = -0.1441743369126926
+
+            x = -x #gripper x coord is opposite direction of robot base x coord
+            z = -z #gripper x coord is opposite direction of robot base x coord
+
+            x_mm = x*1000 
+            y_mm = y*1000 
+            z_mm = z*1000
+
+            move = [x_mm, y_mm, z_mm]
+            return move
 
 
     @classmethod
