@@ -29,10 +29,11 @@ Services involved in this package:
 class xArm_Motion():
     @classmethod
     def __init__(self, ip_addr):
-        # if VERBOSE:
         rospy.loginfo('Starting xArm_motion node.')
         rospy.loginfo("Creating xArm_Wrapper for ip: {ip_addr} ----")
         self.ip = ip_addr
+
+        self.initialize_xarm()
 
         self.get_xArm_service = rospy.Service('home_pos', home_pos, self.home_pos)
         self.get_xArm_service = rospy.Service('arc_move', arc_move, self.arc_motion)
@@ -41,13 +42,11 @@ class xArm_Motion():
         self.get_xArm_service = rospy.Service('hook', hook, self.hook)
         self.get_xArm_service = rospy.Service('unhook', unhook, self.unhook)
 
-        # if VERBOSE:
         rospy.loginfo('Waiting for service calls...')
 
 
     @classmethod
     def initialize_xarm(self):
-        # if VERBOSE:
         rospy.loginfo('Initializing the xArm')
 
         self.arm = XArmAPI(self.ip)
@@ -56,7 +55,7 @@ class xArm_Motion():
         self.arm.set_state(state=0)
 
     @classmethod 
-    def home_pos(self):
+    def home_pos(self, req: home_posResponse) -> home_posRequest:
         '''
         xArm moves to the home position:
         
@@ -64,10 +63,10 @@ class xArm_Motion():
                 - status = xArm status
         '''
 
-        # if VERBOSE:
         rospy.loginfo('Going to Home Position')
         self.arm.set_servo_angle(angle=[0, -90, 0, 0, 0, 0], is_radian=False, wait=True)
-        return self.status
+        # return self.status
+        return home_posResponse(status="at home position")
 
 
     @classmethod
@@ -80,7 +79,7 @@ class xArm_Motion():
         self.arm.set_servo_angle(angle=[-90, 41.5, -40.3, 0, -88.3, 0], is_radian=False, wait=True)
 
     @classmethod
-    def go2EM(self):
+    def go2EM(self, req: go2EMResponse) -> go2EMRequest:
         '''
         xArm moves to the external mechanisms nozzles based on the ID number:
 
@@ -95,29 +94,31 @@ class xArm_Motion():
                 - status = xArm status
         '''
 
-        # if VERBOSE: 
         rospy.loginfo("Going to External Mechnanisms")
         self.go2EM_plane()
 
-        if self.id == 1:
+        if req.id == "clean":
+            rospy.loginfo("Going to Cleaning Nozzle")
             print(f"---- going to cleaning nozzle ----")
             ### TODO: MODIFY THIS TO INCLUDE NEW CODE FROM AMIGA ###
             self.arm.set_servo_angle(angle=[-133.6, 56.9, -53.4, 46, -85.6, 0], is_radian=False, wait=True)
-            self.status = "moved to cleaning nozzle"
+            action = "moved to cleaning nozzle"
 
-        elif self.id == 2:
+        elif req.id == "cal_low":
+            rospy.loginfo("Going to Low Calibration Nozzle")
             print(f"---- going to low calibration nozzle ----")
             self.arm.set_servo_angle(angle=[-118.3, 60.2, -69.9, 62.8, -77.9, -13.2], is_radian=False, wait=True)
             ### TODO: MODIFY THIS TO INCLUDE NEW CODE FROM AMIGA ###
-            self.status = "moved to low calibration nozzle"
+            action = "moved to low calibration nozzle"
 
-        elif self.id == 3:
+        elif req.id == "cal_high":
+            rospy.loginfo("Going to High Calibration Nozzle")
             print(f"---- going to high calibration nozzle ----")
             self.arm.set_servo_angle(angle=[-110.4, 75.9, -107.8, 73, -74.5, -33.8], is_radian=False, wait=True)
             ### TODO: MODIFY THIS TO INCLUDE NEW CODE FROM AMIGA ###
-            self.status = "moved to high calibration nozzle"
+            action = "moved to high calibration nozzle"
 
-        return self.status
+        return go2EMResponse(status = action)
 
     @classmethod
     def go2corn(self):
@@ -136,17 +137,32 @@ class xArm_Motion():
 
     @classmethod
     def hook(self):
-        # if VERBOSE:
+        '''
+        xArm moves to the external mechanisms nozzles based on the ID number:
+
+        Parameters:
+            The request: req(get_xArm_service)
+                - grasp points 
+                     = [x, y, z] of the grasp points from the Perception stack
+        
+        Returns:
+                - angle = best insertion angle for insertion
+        '''
         rospy.loginfo("Going to hook the cornstalk")
 
     @classmethod
     def unhook(self):
+        '''
+        xArm performs the reverse of the hook motion:
+        
+        Returns:
+                - status = xArm status
+        '''
         # if VERBOSE:
         rospy.loginfo("Going to unhook the cornstalk")
 
     @classmethod
     def get_stalk_pose(self):
-        # if VERBOSE:
         rospy.loginfo("Getting the pose of the cornstalk")
 
         # Getting the pose of the cornstalk from the perception stack (using the get_stalk service)
@@ -158,7 +174,7 @@ class xArm_Motion():
         except rospy.ServiceException as exc:
             print("Service did not process request: " + str(exc))
 
-        print(' ---- Got response from stalk detection:', s_pose.position, ' ----')
+        print('---- Got response from stalk detection:', s_pose.position, ' ----')
 
         print("POSE IS", [s_pose.position.x, s_pose.position.y, s_pose.position.z])
         return  np.array([s_pose.position.x, s_pose.position.y, s_pose.position.z])
