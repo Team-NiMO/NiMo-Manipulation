@@ -2,6 +2,7 @@
 
 import sys
 import numpy as np
+import quaternion
 import rospy
 import geometry_msgs.msg
 import time
@@ -16,7 +17,6 @@ from stalk_detect.srv import GetStalk
 #Manipulation
 # from nimo_manipulation.srv import (arc_move, go2corn, go2EM, home_pos, hook, unhook)
 from nimo_manipulation.srv import *
-
 
 '''
 Services involved in this package:
@@ -50,9 +50,13 @@ class xArm_Motion():
             print("Service did not process request: " + str(exc))
 
         rospy.loginfo('Waiting for service calls...')
+
+        # Tracking of status
+        self.cur_status = None
+        self.flag = None
+        # for unhooking
         self.reverse_x = None 
         self.reverse_y = None
-
 
     @classmethod
     def initialize_xarm(self):
@@ -67,29 +71,45 @@ class xArm_Motion():
     def home_pos(self, req: home_posResponse) -> home_posRequest:
         '''
         xArm moves to the home position:
+
+        Status ID: "home"
         
         Returns:
                 - status = xArm status
         '''
 
         rospy.loginfo('Going to Home Position')
+
+        # check condition to verify if xArm should move through the ext. mechanisms plane
+        if(self.flag == 1):
+            self.go2EM_plane()
+
+        # end-effector faces the left side of the amiga base
         self.arm.set_servo_angle(angle=[0, -90, 0, -90, 90, 0], is_radian=False, wait=True)
-        self.cur_status = "home"
-        return home_posResponse(status="at home position")
+
+        self.cur_status = "home" # internal tracker
+        self.flag = 0 
+
+        # Response to the FSM
+        return home_posResponse(status= self.cur_status)
 
     @classmethod
     def go2EM_plane(self):
         '''
         xArm moves to the external mechanisms plane to support go2EM():
         '''
-        # if VERBOSE:
+        
         rospy.loginfo('Going to External Mechanisms Plane')
+        print("flag in the EM plane function:",self.flag)
         self.arm.set_servo_angle(angle=[-90, 41.5, -40.3, 0, -88.3, 0], is_radian=False, wait=True)
 
     @classmethod
     def go2EM(self, req: go2EMResponse) -> go2EMRequest:
         '''
         xArm moves to the external mechanisms nozzles based on the ID number:
+
+        Status ID: "EM"
+        Response to FSM: "moved to nozzle: " + req.id
 
         Parameters:
             The request: req(get_xArm_service)
@@ -102,53 +122,53 @@ class xArm_Motion():
                 - status = xArm status
         '''
 
-        rospy.loginfo("Going to External Mechnanisms")
-        # self.go2EM_plane()
-
-        '''
-        PSEUDOCODE:
-            if status = [clean, cal_low, cal_high]:
-                if flag == 1:
-                    continue
-                elif flag == 0:
-                    self.go2EM_plane()
-                    flag = 1
-            
-            elif status != [clean, cal_low, cal_high]:
-                if flag == 0:
-                    continue
-                elif flag == 1:
-                    self.go2EM_plane()
-                    flag = 0
-        '''
+        rospy.loginfo("Going to External Mechanisms")
+        
+        # check condition to verify if xArm should move through ext. mechanisms
+        if(self.flag == 0):
+            self.go2EM_plane()
         
         if req.id == "clean":
             rospy.loginfo("Going to Cleaning Nozzle")
             print(f"---- going to cleaning nozzle ----")
             ### TODO: MODIFY THIS TO INCLUDE NEW CODE FROM AMIGA ###
             self.arm.set_servo_angle(angle=[-133.6, 56.9, -53.4, 46, -85.6, 0], is_radian=False, wait=True)
-            action = "moved to cleaning nozzle"
 
         elif req.id == "cal_low":
             rospy.loginfo("Going to Low Calibration Nozzle")
             print(f"---- going to low calibration nozzle ----")
-            self.arm.set_servo_angle(angle=[-118.3, 60.2, -69.9, 62.8, -77.9, -13.2], is_radian=False, wait=True)
             ### TODO: MODIFY THIS TO INCLUDE NEW CODE FROM AMIGA ###
-            action = "moved to low calibration nozzle"
+            self.arm.set_servo_angle(angle=[-118.3, 60.2, -69.9, 62.8, -77.9, -13.2], is_radian=False, wait=True)
 
         elif req.id == "cal_high":
             rospy.loginfo("Going to High Calibration Nozzle")
             print(f"---- going to high calibration nozzle ----")
-            self.arm.set_servo_angle(angle=[-110.4, 75.9, -107.8, 73, -74.5, -33.8], is_radian=False, wait=True)
             ### TODO: MODIFY THIS TO INCLUDE NEW CODE FROM AMIGA ###
-            action = "moved to high calibration nozzle"
-            # self.go2EM_plane()
+            self.arm.set_servo_angle(angle=[-110.4, 75.9, -107.8, 73, -74.5, -33.8], is_radian=False, wait=True)
+
+        self.cur_status = "EM"
+        self.flag = 1
 
         return go2EMResponse(status = "moved to nozzle: " + req.id)
 
     @classmethod
-    def go2corn(self):
-        # if VERBOSE:
+    def go2corn(self, req: go2cornResponse) -> go2cornRequest:
+        '''
+        xArm moves to the external mechanisms nozzles based on the ID number:
+
+        Status ID: "moved to corn"
+
+        Parameters:
+            The request: req(get_xArm_service)
+                - id = id number of the nozzle to move to
+                     = id=1 -> water nozzle
+                       id=2 -> lowconc nozzle
+                       id=3 -> highconc nozzle
+        
+        Returns:
+                - status = xArm status
+        '''
+
         rospy.loginfo("Going to the cornstalk")
         
         # [x, y, z] of the cornstalk (IN THE WORLD FRAME)
@@ -156,10 +176,16 @@ class xArm_Motion():
 
         #TODO: Include the code of the the xArm moving to the vicinity of the cornstalk
 
+        self.cur_status = "moved to corn"
+
+        return go2cornResponse(status = self.cur_status)
+
     @classmethod
     def hook(self, req: hookResponse) -> hookRequest:
         '''
         xArm moves to the hook the cornstalk at an angle provided by:
+
+        Status ID: "hooked"
 
         Parameters:
             The request: req(get_xArm_service)
@@ -175,6 +201,10 @@ class xArm_Motion():
         '''
         ### Init + Frame Transforms for the xArm6
         '''
+        # check condition to verify if xArm should move through ext. mechanisms
+        if(self.flag == 1):
+            self.go2EM_plane()
+
         grasp = req.g
 
         #Add: transformation to TF tree
@@ -188,11 +218,12 @@ class xArm_Motion():
 
         #TF header
         static_transformStamped.header.stamp = rospy.Time.now() # time at which the pose has been received
-        static_transformStamped.header.frame_id = "camera_link" # parent_link
+        static_transformStamped.header.frame_id = "world" # parent_link
         static_transformStamped.child_frame_id = "corn_cam" # child_link
         print("child frame: ", static_transformStamped.child_frame_id)
         
         #TF position -> TODO: check with Mark
+        # TODO: Corn position is in world frame not camera frame
         static_transformStamped.transform.translation.x = grasp[0] # z in OpenCV frame
         static_transformStamped.transform.translation.y = grasp[1] # x in OpenCV frame
         static_transformStamped.transform.translation.z = grasp[2] # y in OpenCV frame
@@ -214,16 +245,25 @@ class xArm_Motion():
         rospy.loginfo("Going to hook the cornstalk")
 
         print("Going to plane")
-        self.arm.set_servo_angle(angle=[0, -78.4, -21.1, 0, 10.4, 0], is_radian=False, wait=True)
+        # self.arm.set_servo_angle(angle=[0, -78.4, -21.1, 0, 10.4, -90], is_radian=False, wait=True)
+        self.arm.set_servo_angle(angle=[-90, -90, 0, -90, 0, 0], is_radian=False, wait=True)
+        # time.sleep(5)
         
         # print("position_aa: ", self.arm.get_position_aa())
         # position_aa:  (0, [155.261932, 0.0, 584.046875, 128.274937, 0.0, 126.275658])
 
         #0. move away from corn to prevent hitting during rotation
         #1. pivot to face corn
-        print("Going to rotated camera plane")
-        print(" ---- move Y away to prevent hitting corn during rotation  ----")
-        self.arm.set_position_aa(axis_angle_pose=[0, 35, 0, 0, 0, -90], relative=True, wait=True)
+        # print("Going to rotated camera plane")
+        # print(" ---- move Y away to prevent hitting corn during rotation  ----")
+        # self.arm.set_position_aa(axis_angle_pose=[0, 35, 0, 0, 0, -90], relative=True, wait=True)
+        # self.arm.set_position_aa(axis_angle_pose=[0, -50, 0, 0, 0, 0], relative=True, wait=True)
+        # time.sleep(5)
+        # self.arm.set_position_aa(axis_angle_pose=[0, 0, 0, 50, 0, 0], relative=True, wait=True)
+        # # self.arm.set_position_aa(axis_angle_pose=[0, 35, 0, 0, 0, 0], relative=True, wait=True)
+        
+        # # self.arm.set_position_aa(axis_angle_pose=[0, -80, 0, 0, 0, 0], relative=True, wait=True)
+        # time.sleep(5)
 
         # print(" ---- rotating EE -90 deg Y  ----")
         # self.arm.set_position_aa(axis_angle_pose=[0, 0, 0, 0, 0, -90], relative=True, wait=True)
@@ -234,7 +274,6 @@ class xArm_Motion():
         print("move:", move)
         if move is None:
             return hookResponse(status="Wait")
-        # sys.exit()
 
         # ---------------------------------------------------------------------------------------------------------
 
@@ -245,13 +284,15 @@ class xArm_Motion():
         x_mm, y_mm, z_mm = move[0], move[1], move[2]
 
         # Tuned by Mark's implementation for a static environment
-        x_mm_tuned_offset = 29
+        # x_mm_tuned_offset = 29
+        x_mm_tuned_offset = 0
 
         #80mm is roughly center of gripper to edge of C clamp, 5 is fine-tuned offset
         x_mm_gripper_width = 80+5 
-        x_mm_with_gripper_offest = x_mm + x_mm_gripper_width + x_mm_tuned_offset
+        x_mm_with_gripper_offest = x_mm - x_mm_gripper_width - x_mm_tuned_offset
 
-        y_mm_tuned_offset = -32
+        # y_mm_tuned_offset = -32
+        y_mm_tuned_offset = -20
         print(f"x_mm, x_mm_with_gripper_offest {x_mm, x_mm_with_gripper_offest}")
 
         x_mm_deeper_clamp_insert = 14
@@ -266,34 +307,42 @@ class xArm_Motion():
 
         # '''
         print(" 1. move X align 1/10 ")
-        self.arm.set_position_aa(axis_angle_pose=[x_mm_with_gripper_offest, 0, 0, 0, 0, 0], relative=True, wait=True)
+        # self.arm.set_position_aa(axis_angle_pose=[x_mm_with_gripper_offest, 0, 0, 0, 0, 0], relative=True, wait=True)
+        self.arm.set_position_aa(axis_angle_pose=[x_mm_with_gripper_offest, 0, 0, 0, 0, 0], speed=50, relative=True, wait=True) #reverse
         # time.sleep(10)
 
         print(" 2. move Y approach  2/10")
-        self.arm.set_position_aa(axis_angle_pose=[0, y_mm+y_mm_tuned_offset, 0, 0, 0, 0], relative=True, wait=True)
+        self.arm.set_position_aa(axis_angle_pose=[0, y_mm+y_mm_tuned_offset, 0, 0, 0, 0], speed=50, relative=True, wait=True)
         # time.sleep(10)
         
         print(" 2.5 move Y to compensate overshoot  2.5/10")
-        self.arm.set_position_aa(axis_angle_pose=[0, y_mm_overshoot, 0, 0, 0, 0], relative=True, wait=True)
+        self.arm.set_position_aa(axis_angle_pose=[0, y_mm_overshoot, 0, 0, 0, 0], speed=50, relative=True, wait=True)
         # time.sleep(10)
         
         print(" 3. move Z to down 3/10 with z: {z_mm_tuned}")
-        self.arm.set_position_aa(axis_angle_pose=[0, 0, z_mm_tuned, 0, 0, 0], relative=True, wait=True)
+        self.arm.set_position_aa(axis_angle_pose=[0, 0, z_mm_tuned, 0, 0, 0], speed=50, relative=True, wait=True)
         # time.sleep(10)
+        # sys.exit()
 
         print(f" 4. move X center w gripper 4/10")
-        self.arm.set_position_aa(axis_angle_pose=[-x_mm_gripper_width-x_mm_tuned_offset, 0, 0, 0, 0, 0], relative=True, wait=True)
+        # self.arm.set_position_aa(axis_angle_pose=[-x_mm_gripper_width-x_mm_tuned_offset, 0, 0, 0, 0, 0], relative=True, wait=True)
+        self.arm.set_position_aa(axis_angle_pose=[x_mm_gripper_width-x_mm_tuned_offset, 0, 0, 0, 0, 0], relative=True, wait=True) # reverse
         # time.sleep(10)
-        print(f"-x_mm_gripper_width-x_mm_tuned_offset: {-x_mm_gripper_width-x_mm_tuned_offset}")
+        # print(f"-x_mm_gripper_width-x_mm_tuned_offset: {-x_mm_gripper_width-x_mm_tuned_offset}")
+        print(f"x_mm_gripper_width-x_mm_tuned_offset: {x_mm_gripper_width-x_mm_tuned_offset}") #reverse
 
         print(f" 5. move X go deeper 5/10")
-        self.arm.set_position_aa(axis_angle_pose=[-x_mm_deeper_clamp_insert, 0, 0, 0, 0, 0], relative=True, wait=True)
+        # self.arm.set_position_aa(axis_angle_pose=[-x_mm_deeper_clamp_insert, 0, 0, 0, 0, 0], relative=True, wait=True)
+        self.arm.set_position_aa(axis_angle_pose=[x_mm_deeper_clamp_insert, 0, 0, 0, 0, 0], relative=True, wait=True) # reverse
         # time.sleep(5)
-        print(f"-x_mm_deeper_clamp_insert: {-x_mm_deeper_clamp_insert}")
+        # print(f"-x_mm_deeper_clamp_insert: {-x_mm_deeper_clamp_insert}")
+        print(f"x_mm_deeper_clamp_insert: {x_mm_deeper_clamp_insert}") #reverse
 
         print(f" 6. move X to recenter 6/10")
-        self.arm.set_position_aa(axis_angle_pose=[+x_mm_deeper_clamp_retract, 0, 0, 0, 0, 0], relative=True, wait=True)
-        print(f"x_mm_deeper_clamp_retract: {x_mm_deeper_clamp_retract}")
+        # self.arm.set_position_aa(axis_angle_pose=[+x_mm_deeper_clamp_retract, 0, 0, 0, 0, 0], relative=True, wait=True)
+        self.arm.set_position_aa(axis_angle_pose=[-x_mm_deeper_clamp_retract, 0, 0, 0, 0, 0], relative=True, wait=True) # reverse
+        # print(f"x_mm_deeper_clamp_retract: {x_mm_deeper_clamp_retract}")
+        print(f"-x_mm_deeper_clamp_retract: {-x_mm_deeper_clamp_retract}") #reverse 
         # time.sleep(5)
 
         print(f" 6.5 move Y to get corn on edge of funnel 6.5/10")
@@ -307,10 +356,14 @@ class xArm_Motion():
         print("\ninsertion angle:", req.angle)
 
         # values for unhooking the cornstalk
-        self.reverse_x = -1*(-x_mm_gripper_width-x_mm_tuned_offset)
+        # self.reverse_x = -1*(-x_mm_gripper_width-x_mm_tuned_offset)
+        self.reverse_x = -1*(x_mm_gripper_width-x_mm_tuned_offset) #reverse
         self.reverse_y = -1*(y_mm+y_mm_tuned_offset)
 
-        return hookResponse(status="Hooked cornstalk")
+        self.cur_status = "hooked"
+        self.flag = 0
+
+        return hookResponse(status=self.cur_status)
     
     @classmethod
     def transform(self):
@@ -326,8 +379,9 @@ class xArm_Motion():
         tf_lookup_done = False
 
         while not tf_lookup_done:
+            print("here")
             try:
-                trans = tfBuffer.lookup_transform('world', 'corn_cam', rospy.Time(), rospy.Duration(3.0))
+                trans = tfBuffer.lookup_transform('world', 'corn_cam', rospy.Time(), rospy.Duration(5.0))
                 print(f" ******** transform TF lookup done ******** ")
                 tf_lookup_done = True
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
@@ -343,7 +397,7 @@ class xArm_Motion():
             #TF header
             static_transformStamped.header.stamp = rospy.Time.now()
             static_transformStamped.header.frame_id = "world"
-            static_transformStamped.child_frame_id = "corn"
+            static_transformStamped.child_frame_id = "corn_cam"
             #TF position
             static_transformStamped.transform.translation.x = trans.transform.translation.x
             static_transformStamped.transform.translation.y = trans.transform.translation.y
@@ -368,55 +422,64 @@ class xArm_Motion():
 
         while not tf_lookup_done:
             try:
-                trans = tfBuffer.lookup_transform('gripper', 'corn', rospy.Time())
+                trans = tfBuffer.lookup_transform('corn_cam', 'gripper', rospy.Time(), rospy.Duration(3.0))
+                trans_g2b = tfBuffer.lookup_transform('link_base', 'gripper', rospy.Time(), rospy.Duration(3.0))
                 tf_lookup_done = True
                 print(f" ******** transform_lookup TF lookup done ******** ")
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+            # except Exception as e:
             # except (tf2_ros.LookupException):
-                # print(f" ******** transform_lookup TF lookup error ******** ")
+                print(f" ******** transform_lookup TF lookup error ******** ")
                 tf_lookup_done = False
 
-        print("need to translate :", trans.transform.translation)
-        x = trans.transform.translation.x
-        y = trans.transform.translation.y
-        z = trans.transform.translation.z
+        # print("need to translate :", trans.transform.translation)
+        p = np.array([trans.transform.translation.x, trans.transform.translation.y, trans.transform.translation.z])
+        x = -p[0]
+        y = -p[1]
+        z = -p[2]
 
         # reject spurious cam pose by thresholding Y
-        if y > -0.10 or y < -0.75:
-            rospy.loginfo(" ******** ERROR: GARBAGE CAM DETECTION. WAITING FOR SERVICE *******")
+        # if y > -0.10 or y < -0.75:
+        #     rospy.loginfo(" ******** ERROR: GARBAGE CAM DETECTION. WAITING FOR SERVICE *******")
         
-        else:
-            #hard coded for initial mock test setup
-            '''
-            x = -0.03628206015960567 # in cm
-            y = -0.1458352749289401
-            '''
+        # else:
+        # hard coded for initial mock test setup
+            # # ''' 
+            # x = -0.03628206015960567 # in m
+            # y = -0.1458352749289401
+            # # '''
 
-            x = -0.05
-            y = -0.16375
+            # x = -0.05
+            # y = -0.16375
 
-            z = -0.1441743369126926
+            # z = -0.1441743369126926
 
-            x = -x #gripper x coord is opposite direction of robot base x coord
-            z = -z #gripper x coord is opposite direction of robot base x coord
+            # x = -x #gripper x coord is opposite direction of robot base x coord
+        x = x #gripper x coord is opposite direction of robot base x coord #reverse
+        z = -z #gripper x coord is opposite direction of robot base x coord
 
-            x_mm = x*1000 # in mm 
-            y_mm = y*1000 
-            z_mm = z*1000
+        x_mm = x*1000 # in mm 
+        y_mm = y*1000 
+        z_mm = z*1000
 
-            move = [x_mm, y_mm, z_mm]
-            return move
+        move = [x_mm, y_mm, z_mm]
+        return move
 
     @classmethod
     def unhook(self, req: unhookResponse) -> unhookRequest:
         '''
         xArm performs the reverse of the hook motion:
+
+        Status ID: "Unhooked"
         
         Returns:
                 - status = xArm status
         '''
-        # if VERBOSE:
         rospy.loginfo("Going to unhook the cornstalk")
+
+        # check condition to verify if xArm should move through ext. mechanisms
+        if(self.flag == 1):
+            self.go2EM_plane()
 
         y_mm_gripper_width = 10
         print(f" 8. move out Y 8/10")
@@ -431,14 +494,26 @@ class xArm_Motion():
         self.arm.set_position_aa(axis_angle_pose=[0, self.reverse_y, 0, 0, 0, 0], relative=True, wait=True)
         # time.sleep(10)
 
-        return unhookResponse(status="Unhooked cornstalk")
+        self.cur_status = "Unhooked"
+        self.flag = 0
 
-        
+        return unhookResponse(status="Unhooked")
 
     @classmethod
-    def arc_motion(self):
+    def arc_motion(self, req: arc_moveResponse) -> arc_moveRequest:
         # if VERBOSE:
         rospy.loginfo("Performing the arc motion")
+
+        # check condition to verify if xArm should move through ext. mechanisms
+        if(self.flag == 1):
+            self.go2EM_plane()
+
+        self.cur_status = "arc motion"
+        self.flag = 0
+
+        # return arc_moveResponse(statu)
+
+        
 
     '''
     ##########################################################
