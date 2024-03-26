@@ -57,6 +57,8 @@ class xArm_Motion():
         # for unhooking
         self.reverse_x = None 
         self.reverse_y = None
+        # to keep track of the angle at which the xarm is facing the cornstalk
+        self.angle = 0
 
     @classmethod
     def initialize_xarm(self):
@@ -85,7 +87,8 @@ class xArm_Motion():
             self.go2EM_plane()
 
         # end-effector faces the left side of the amiga base
-        self.arm.set_servo_angle(angle=[0, -90, 0, -90, 90, 0], is_radian=False, wait=True)
+        # self.arm.set_servo_angle(angle=[0, -90, 0, -90, 90, 0], is_radian=False, wait=True)
+        self.arm.set_servo_angle(angle=[0, -90, 0, -90, 90, 90], is_radian=False, wait=True)
 
         self.cur_status = "home" # internal tracker
         self.flag = 0 
@@ -172,13 +175,74 @@ class xArm_Motion():
         rospy.loginfo("Going to the cornstalk")
         
         # [x, y, z] of the cornstalk (IN THE WORLD FRAME)
-        corn_pose = self.get_stalk_pose()
+        # corn_pose = self.get_stalk_pose()
 
         #TODO: Include the code of the the xArm moving to the vicinity of the cornstalk
 
+        '''
+        # 1. get grasp point
+        '''
+
+        # check condition to verify if xArm should move through ext. mechanisms
+        if(self.flag == 1):
+            self.go2EM_plane()
+
+        grasp = req.g
+        self.angle = 0
+
+        #Add: transformation to TF tree
+        broadcaster = tf2_ros.StaticTransformBroadcaster()
+        static_transformStamped = geometry_msgs.msg.TransformStamped()
+
+        #TF header
+        static_transformStamped.header.stamp = rospy.Time.now() # time at which the pose has been received
+        static_transformStamped.header.frame_id = "world" # parent_link
+        static_transformStamped.child_frame_id = "corn_cam" # child_link
+        print("child frame: ", static_transformStamped.child_frame_id)
+        
+        # TODO: Corn position is in world frame not camera frame
+        static_transformStamped.transform.translation.x = grasp[0] # z in OpenCV frame
+        static_transformStamped.transform.translation.y = grasp[1] # x in OpenCV frame
+        static_transformStamped.transform.translation.z = grasp[2] # y in OpenCV frame
+        # Setting the translation terms to be that of the cornstalk grasp points
+
+        #TF quaternion
+        static_transformStamped.transform.rotation.x = 0.0
+        static_transformStamped.transform.rotation.y = 0.0
+        static_transformStamped.transform.rotation.z = 0.0
+        static_transformStamped.transform.rotation.w = 1.0
+
+        # Add the corn_cam link at an offset from the "camera_link"
+        broadcaster.sendTransform(static_transformStamped)
+        time.sleep(1)
+
+        self.transform()
+        
+        # receive translation values for xArm6
+        move = self.transform_lookup()
+        print("move:", move)
+        if move is None:
+            return hookResponse(status="Wait")
+
+        '''
+        # 2. get relative movement to the grasp point - translation only 
+        '''
+        x, y, z = move[0], move[1], move[2]
+
+        self.arm.set_position_aa(axis_angle_pose=[x, y+0.15, z, 0, 0, 0], speed=50, relative=True, wait=True)
+
         self.cur_status = "moved to corn"
 
-        return go2cornResponse(status = self.cur_status)
+        # return go2cornResponse(status = self.cur_status)
+    
+    @classmethod
+    def calculate_position(self, centre, radius, angle):
+        x_t = centre[0] + radius * np.sin(np.radians(angle))
+        y_t = centre[1] + radius * np.cos(np.radians(angle))
+        # z_t = centre[2]
+        # return target parameters
+        # print("x_t, y_t, z_t", x_t, y_t, z_t)
+        return [x_t, y_t]
 
     @classmethod
     def hook(self, req: hookResponse) -> hookRequest:
@@ -224,9 +288,9 @@ class xArm_Motion():
         
         #TF position -> TODO: check with Mark
         # TODO: Corn position is in world frame not camera frame
-        static_transformStamped.transform.translation.x = grasp[0] # z in OpenCV frame
-        static_transformStamped.transform.translation.y = grasp[1] # x in OpenCV frame
-        static_transformStamped.transform.translation.z = grasp[2] # y in OpenCV frame
+        static_transformStamped.transform.translation.x = grasp[0]
+        static_transformStamped.transform.translation.y = grasp[1]
+        static_transformStamped.transform.translation.z = grasp[2]
         # Setting the translation terms to be that of the cornstalk grasp points
 
         #TF quaternion
@@ -353,7 +417,7 @@ class xArm_Motion():
         time.sleep(1)
         
         print("grasp points:", grasp)
-        print("\ninsertion angle:", req.angle)
+        print("\ninsertion angle:", req.move_angle)
 
         # values for unhooking the cornstalk
         # self.reverse_x = -1*(-x_mm_gripper_width-x_mm_tuned_offset)
@@ -455,8 +519,8 @@ class xArm_Motion():
             # z = -0.1441743369126926
 
             # x = -x #gripper x coord is opposite direction of robot base x coord
-        x = x #gripper x coord is opposite direction of robot base x coord #reverse
-        z = -z #gripper x coord is opposite direction of robot base x coord
+        # x = x #gripper x coord is opposite direction of robot base x coord #reverse
+        # z = -z #gripper x coord is opposite direction of robot base x coord
 
         x_mm = x*1000 # in mm 
         y_mm = y*1000 
@@ -508,10 +572,46 @@ class xArm_Motion():
         if(self.flag == 1):
             self.go2EM_plane()
 
-        self.cur_status = "arc motion"
-        self.flag = 0
+        insertion_angle = req.move_angle
+        self.angle += req.move_angle
+        print("total angle: ", self.angle)
 
-        # return arc_moveResponse(statu)
+        tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
+        tf2_ros.TransformListener(tfBuffer)
+        tf_lookup_done = False
+
+        while not tf_lookup_done:
+            try:
+                trans = tfBuffer.lookup_transform('link_base', 'gripper', rospy.Time(), rospy.Duration(3.0))
+                tf_lookup_done = True
+                print(f" ******** transform_lookup TF lookup done ******** ")
+            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+            # except Exception as e:
+            # except (tf2_ros.LookupException):
+                print(f" ******** transform_lookup TF lookup error ******** ")
+                tf_lookup_done = False
+
+        x_curr, y_curr = trans.transform.translation.x, trans.transform.translation.y
+        
+        # #change passed in values based on how API returns position
+        x_pos, y_pos = self.calculate_position([x_curr, y_curr-0.15], 0.15, insertion_angle)
+
+        print(insertion_angle)
+        print("x,y: ", x_curr, y_curr)
+        print("x,y: ", x_pos, y_pos)
+
+        self.arm.set_position_aa(axis_angle_pose=[(x_pos-x_curr) * 1000, (y_pos-y_curr) * 1000, 0, 0, 0, -insertion_angle], speed=50, relative=True, wait=True, is_radian=False)
+        print("DONE")
+
+        # '''
+        # rotation
+        # '''
+        # self.arm.set_position_aa(axis_angle_pose=[0, 0, 0, 0, 0, -insertion_angle], speed=50, relative=True, wait=True)
+
+        # self.cur_status = "arc motion"
+        # self.flag = 0
+
+        return arc_moveResponse(angle=self.angle)
 
         
 
