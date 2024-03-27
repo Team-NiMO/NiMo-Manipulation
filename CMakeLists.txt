@@ -52,12 +52,12 @@ find_package(catkin REQUIRED COMPONENTS
 # Generate services in the 'srv' folder
 add_service_files(
   FILES
-  arc_move.srv
-  go2corn.srv
-  go2EM.srv
-  home_pos.srv
-  hook.srv
-  unhook.srv
+  ArcCorn.srv
+  GoCorn.srv
+  GoEM.srv
+  GoHome.srv
+  HookCorn.srv
+  UnhookCorn.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -71,6 +71,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  geometry_msgs
 )
 
 ################################################
