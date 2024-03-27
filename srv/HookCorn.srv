@@ -1,3 +1,4 @@
 geometry_msgs/Point grasp_point
+int32 insert_angle
 ---
 string success

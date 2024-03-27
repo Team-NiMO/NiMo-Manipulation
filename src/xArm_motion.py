@@ -50,7 +50,7 @@ class xArm_Motion():
         
         Returns:
             GoHomeResponse: The response:
-                           - success - The success of the operation (SUCCESS / ERROR)
+                           - success - The success of the operation (DONE / ERROR)
         '''
 
         if VERBOSE: rospy.loginfo('Going to Home Position')
@@ -69,7 +69,7 @@ class xArm_Motion():
         self.cur_status = "home"
         self.flag = 0
 
-        return GoHomeResponse(success="SUCCESS")
+        return GoHomeResponse(success="DONE")
 
     @classmethod
     def GoEMPlane(self):
@@ -89,14 +89,14 @@ class xArm_Motion():
     def GoEM(self, req: GoEMRequest) -> GoEMResponse:
         '''
         Move the xArm to the external mechanisms at the specific nozzle
-
+qq
         Parameters:
             req (GoEMRequest): The request:
                                - id - which nozzle to move to
         
         Returns:
             GoEMResponse: The response:
-                          - success - The success of the operation (SUCCESS / ERROR)
+                          - success - The success of the operation (DONE / ERROR)
         '''
         
         # check condition to verify if xArm should move through ext. mechanisms
@@ -128,7 +128,7 @@ class xArm_Motion():
         self.cur_status = "EM"
         self.flag = 1
 
-        return GoEMResponse(success="SUCCESS")
+        return GoEMResponse(success="DONE")
 
     @classmethod
     def GoCorn(self, req: GoCornRequest) -> GoCornResponse:
@@ -141,7 +141,7 @@ class xArm_Motion():
         
         Returns:
             GoCornResponse: The response:
-                          - success - The success of the operation (SUCCESS / ERROR)
+                          - success - The success of the operation (DONE / ERROR)
         '''
 
         if VERBOSE: rospy.loginfo("Going to the cornstalk {}, {}, {}".format(req.grasp_point.x, req.grasp_point.y, req.grasp_point.z))
@@ -168,20 +168,20 @@ class xArm_Motion():
         
         # Get the relative movement to the cornstalk
         delta = self.tfBuffer.lookup_transform('corn_cam', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
-        del_x, del_y, del_z = -delta.x * 1000, -delta.y * 1000, -delta.z * 1000 
+        del_x, del_y, del_z = -delta.x * 1000, (-delta.y + 0.15) * 1000, -delta.z * 1000 
 
         # Update relative movement with offset
-        del_x, del_y, del_z = del_x, del_y+150, del_z
+        del_x, del_y, del_z = del_x, del_y, del_z
 
         code = self.arm.set_position_aa(axis_angle_pose=[del_x, del_y, del_z, 0, 0, 0], speed=50, relative=True, wait=True)
 
         if code != 0:
             rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return GoEMResponse(success="ERROR")
+            return GoCornResponse(success="ERROR")
 
         self.cur_status = "moved to corn"
 
-        return GoCornResponse(success="SUCCESS")
+        return GoCornResponse(success="DONE")
 
     @classmethod
     def HookCorn(self, req: HookCornRequest) -> HookCornResponse:
@@ -194,7 +194,7 @@ class xArm_Motion():
         
         Returns:
             HookCornResponse: The response:
-                              - success - The success of the operation (SUCCESS / ERROR)
+                              - success - The success of the operation (DONE / ERROR)
         '''
 
         if VERBOSE: rospy.loginfo("Hooking cornstalk {}, {}, {}".format(req.grasp_point.x, req.grasp_point.y, req.grasp_point.z))
@@ -226,26 +226,46 @@ class xArm_Motion():
 
         if code != 0:
             rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return GoEMResponse(success="ERROR")
+            return HookCornResponse(success="ERROR")
         
         # Move to pre-grasp 2/2
         code = self.arm.set_position_aa(axis_angle_pose=[0, -150, 0, 0, 0, 0], speed=50, relative=True, wait=True)
 
         if code != 0:
             rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return GoEMResponse(success="ERROR")
+            return HookCornResponse(success="ERROR")
         
         # Move to grasp
         code = self.arm.set_position_aa(axis_angle_pose=[85, 0, 0, 0, 0, 0], speed=50, relative=True, wait=True)
 
         if code != 0:
             rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return GoEMResponse(success="ERROR")
+            return HookCornResponse(success="ERROR")
+
+        # Move to insertion angle
+
+        trans = self.tfBuffer.lookup_transform('link_base', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
+        radius = self.tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
+        x_curr, y_curr = trans.x, trans.y
+
+        # Determine the offset to move in x and y 
+        x_pos = x_curr + radius * np.sin(np.radians(req.insert_angle))
+        y_pos = (y_curr-radius) + radius * np.cos(np.radians(req.insert_angle))
+        del_x, del_y = (x_pos-x_curr) * 1000, (y_pos-y_curr) * 1000
+
+        self.unhook_x, self.unhook_y = -del_x, -del_y
+
+        self.absolute_angle = -req.insert_angle
+        code = self.arm.set_position_aa(axis_angle_pose=[del_x, del_y, 0, 0, 0, self.absolute_angle], speed=50, relative=True, wait=True, is_radian=False)
+        
+        if code != 0:
+            rospy.logerr("set_arm_position_aa returned error {}".format(code))
+            return HookCornResponse(success="ERROR")
 
         self.cur_status = "hooked"
         self.flag = 0
 
-        return HookCornResponse(success="SUCCESS")
+        return HookCornResponse(success="DONE")
 
     @classmethod
     def UnhookCorn(self, req: UnhookCornRequest) -> UnhookCornResponse:
@@ -254,10 +274,16 @@ class xArm_Motion():
         
         Returns:
             UnhookCornResponse: The response:
-                           - success - The success of the operation (SUCCESS / ERROR)
+                           - success - The success of the operation (DONE / ERROR)
         '''
         
         if VERBOSE: rospy.loginfo("Unhooking cornstalk")
+
+        code = self.arm.set_position_aa(axis_angle_pose=[self.unhook_x, self.unhook_y, 0, 0, 0, -self.absolute_angle], speed=50, relative=True, wait=True, is_radian=False)
+        
+        if code != 0:
+            rospy.logerr("set_arm_position_aa returned error {}".format(code))
+            return UnhookCornResponse(success="ERROR")
 
         # Move to ungrasp
         code = self.arm.set_position_aa(axis_angle_pose=[-85, 0, 0, 0, 0, 0], speed=50, relative=True, wait=True)
@@ -280,7 +306,7 @@ class xArm_Motion():
             rospy.logerr("set_servo_angle returned error {}".format(code))
             return UnhookCornResponse(success="ERROR")
 
-        return UnhookCornResponse(success="SUCCESS")
+        return UnhookCornResponse(success="DONE")
 
     @classmethod
     def ArcCorn(self, req: ArcCornRequest) -> ArcCornResponse:
@@ -294,7 +320,7 @@ class xArm_Motion():
         Returns:
             ArcCornResponse: The response:
                               - absolute_angle - The absolute angle of the current position
-                              - success - The success of the operation (SUCCESS / ERROR)
+                              - success - The success of the operation (DONE / ERROR)
         '''
 
         if VERBOSE: rospy.loginfo("Performing the arc motion")
@@ -304,12 +330,16 @@ class xArm_Motion():
             self.GoEMPlane()
 
         # Get the current gripper position
-        trans = self.tfBuffer.lookup_transform('link_base', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
+        trans = self.tfBuffer.lookup_transform('link_base', 'link_eef', rospy.Time(), rospy.Duration(3.0)).transform.translation
+        radius = self.tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
         x_curr, y_curr = trans.x, trans.y
-        
+
+        c_x = x_curr - (0.15 + radius) * np.sin(np.radians(self.absolute_angle))
+        c_y = y_curr - (0.15 + radius) * np.cos(np.radians(self.absolute_angle))
+
         # Determine the offset to move in x and y
-        x_pos = x_curr + 0.15 * np.sin(np.radians(req.relative_angle))
-        y_pos = (y_curr-0.15) + 0.15 * np.cos(np.radians(req.relative_angle))
+        x_pos = c_x + (0.15 + radius) * np.sin(np.radians(req.relative_angle + self.absolute_angle))
+        y_pos = c_y + (0.15 + radius) * np.cos(np.radians(req.relative_angle + self.absolute_angle))
         del_x, del_y = (x_pos-x_curr) * 1000, (y_pos-y_curr) * 1000
 
         # Move to offset w/ yaw angle
@@ -321,7 +351,7 @@ class xArm_Motion():
 
         self.absolute_angle += req.relative_angle
 
-        return ArcCornResponse(absolute_angle=self.absolute_angle, success="SUCCESS")
+        return ArcCornResponse(absolute_angle=self.absolute_angle, success="DONE")
     
 
 if __name__ == '__main__':
