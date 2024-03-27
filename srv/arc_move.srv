@@ -1,5 +1,0 @@
-# which angle to move to 
-int32 move_angle
----
-# insertion angle
-int32 angle
