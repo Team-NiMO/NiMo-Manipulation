@@ -182,26 +182,6 @@ class xArm_Motion():
         self.cur_status = "moved to corn"
 
         return GoCornResponse(success="SUCCESS")
-    
-    @classmethod
-    def calculateArcOffset(self, centre, radius, angle):
-        '''
-        Determine the desired offset position from the cornstalk given a yaw angle
-
-        Intended to be used with global coordinates looking left on the Amiga
-
-        Parameters:
-            center - the center point to get an offset from
-            radius - the radius of the offset
-            angle - the angle of the offset
-        
-        Returns:
-            offset_x, offset_y - the x and y positions of the offset.
-        '''
-
-        offset_x = centre[0] + radius * np.sin(np.radians(angle))
-        offset_y = centre[1] + radius * np.cos(np.radians(angle))
-        return offset_x, offset_y
 
     @classmethod
     def HookCorn(self, req: HookCornRequest) -> HookCornResponse:
@@ -328,7 +308,8 @@ class xArm_Motion():
         x_curr, y_curr = trans.x, trans.y
         
         # Determine the offset to move in x and y
-        x_pos, y_pos = self.calculateArcOffset([x_curr, y_curr-0.15], 0.15, req.relative_angle)
+        x_pos = x_curr + 0.15 * np.sin(np.radians(req.relative_angle))
+        y_pos = (y_curr-0.15) + 0.15 * np.cos(np.radians(req.relative_angle))
         del_x, del_y = (x_pos-x_curr) * 1000, (y_pos-y_curr) * 1000
 
         # Move to offset w/ yaw angle
