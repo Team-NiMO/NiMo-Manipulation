@@ -30,11 +30,8 @@ class xArm_Motion():
         self.get_xArm_service = rospy.Service('HookCorn', HookCorn, self.HookCorn)
         self.get_xArm_service = rospy.Service('UnhookCorn', UnhookCorn, self.UnhookCorn)
 
-        # TODO: Cleanup these variables
-        self.cur_status = None
-        self.flag = 0
-        self.reverse_x = None # for unhooking 
-        self.reverse_y = None # for unhooking
+        # Internal variables
+        self.state = "HOME" # TODO: This may not be true on startup
         self.absolute_angle = 0 # angle at which the xarm is facing the cornstalk
 
         self.broadcaster = tf2_ros.StaticTransformBroadcaster()
@@ -53,11 +50,13 @@ class xArm_Motion():
                            - success - The success of the operation (DONE / ERROR)
         '''
 
-        if VERBOSE: rospy.loginfo('Going to Home Position')
-
-        # check condition to verify if xArm should move through the ext. mechanisms plane
-        if(self.flag == 1):
+        if self.state == "CORN_HOOK":
+            rospy.logerr("Invalid Command: Cannot move from {} to {} via GoHome".format(self.state, "HOME"))
+            return GoHomeResponse(success="ERROR")
+        elif self.state == "EM":
             self.GoEMPlane()
+
+        if VERBOSE: rospy.loginfo('Going to Home Position')
 
         # Joint angles corresponding to end-effector facing the left side of the amiga base
         code = self.arm.set_servo_angle(angle=[0, -90, 0, -90, 90, 0], is_radian=False, wait=True)
@@ -66,8 +65,7 @@ class xArm_Motion():
             rospy.logerr("set_servo_angle returned error {}".format(code))
             return GoHomeResponse(success="ERROR")
 
-        self.cur_status = "home"
-        self.flag = 0
+        self.state = "HOME"
 
         return GoHomeResponse(success="DONE")
 
@@ -89,7 +87,7 @@ class xArm_Motion():
     def GoEM(self, req: GoEMRequest) -> GoEMResponse:
         '''
         Move the xArm to the external mechanisms at the specific nozzle
-qq
+
         Parameters:
             req (GoEMRequest): The request:
                                - id - which nozzle to move to
@@ -99,9 +97,15 @@ qq
                           - success - The success of the operation (DONE / ERROR)
         '''
         
-        # check condition to verify if xArm should move through ext. mechanisms
-        if(self.flag == 0):
+        if req.id not in ["clean", "cal_low", "cal_high"]:
+            rospy.logerr("Invalid Command: No such nozzle {}".format(req.id))
+            return GoEMResponse(success="ERROR")
+
+        if self.state == "HOME":
             self.GoEMPlane()
+        elif self.state != "EM":
+            rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "EM"))
+            return GoEMResponse(success="ERROR")
 
         if req.id == "clean":
             if VERBOSE: rospy.loginfo("Going to Cleaning Nozzle")
@@ -124,10 +128,8 @@ qq
         if code != 0:
             rospy.logerr("set_servo_angle returned error {}".format(code))
             return GoEMResponse(success="ERROR")
-
-        self.cur_status = "EM"
-        self.flag = 1
-
+        
+        self.state = "EM"
         return GoEMResponse(success="DONE")
 
     @classmethod
@@ -144,11 +146,11 @@ qq
                           - success - The success of the operation (DONE / ERROR)
         '''
 
-        if VERBOSE: rospy.loginfo("Going to the cornstalk {}, {}, {}".format(req.grasp_point.x, req.grasp_point.y, req.grasp_point.z))
+        if self.state != "HOME":
+            rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_OFFSET"))
+            return GoCornResponse(success="ERROR")
 
-        # check condition to verify if xArm should move through ext. mechanisms
-        if(self.flag == 1):
-            self.GoEMPlane()
+        if VERBOSE: rospy.loginfo("Going to the cornstalk {}, {}, {}".format(req.grasp_point.x, req.grasp_point.y, req.grasp_point.z))
 
         # Reset the absolute angle to the cornstalk
         self.absolute_angle = 0
@@ -179,8 +181,7 @@ qq
             rospy.logerr("set_arm_position_aa returned error {}".format(code))
             return GoCornResponse(success="ERROR")
 
-        self.cur_status = "moved to corn"
-
+        self.state = "CORN_OFFSET"
         return GoCornResponse(success="DONE")
 
     @classmethod
@@ -197,11 +198,11 @@ qq
                               - success - The success of the operation (DONE / ERROR)
         '''
 
-        if VERBOSE: rospy.loginfo("Hooking cornstalk {}, {}, {}".format(req.grasp_point.x, req.grasp_point.y, req.grasp_point.z))
+        if self.state != "HOME":
+            rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_HOOK"))
+            return HookCornResponse(success="ERROR")
 
-        # check condition to verify if xArm should move through ext. mechanisms
-        if(self.flag == 1):
-            self.GoEMPlane()
+        if VERBOSE: rospy.loginfo("Hooking cornstalk {}, {}, {}".format(req.grasp_point.x, req.grasp_point.y, req.grasp_point.z))
 
         # Create the transform to the grasp point
         cornTransform = TransformStamped()
@@ -262,9 +263,7 @@ qq
             rospy.logerr("set_arm_position_aa returned error {}".format(code))
             return HookCornResponse(success="ERROR")
 
-        self.cur_status = "hooked"
-        self.flag = 0
-
+        self.state = "CORN_HOOK"
         return HookCornResponse(success="DONE")
 
     @classmethod
@@ -277,6 +276,10 @@ qq
                            - success - The success of the operation (DONE / ERROR)
         '''
         
+        if self.state != "CORN_HOOK":
+            rospy.logerr("Invalid Command: Cannot move from {} to {} via UnhookCorn".format(self.state, "HOME"))
+            return UnhookCornResponse(success="ERROR")
+
         if VERBOSE: rospy.loginfo("Unhooking cornstalk")
 
         code = self.arm.set_position_aa(axis_angle_pose=[self.unhook_x, self.unhook_y, 0, 0, 0, -self.absolute_angle], speed=50, relative=True, wait=True, is_radian=False)
@@ -306,6 +309,7 @@ qq
             rospy.logerr("set_servo_angle returned error {}".format(code))
             return UnhookCornResponse(success="ERROR")
 
+        self.state = "HOME"
         return UnhookCornResponse(success="DONE")
 
     @classmethod
@@ -323,11 +327,11 @@ qq
                               - success - The success of the operation (DONE / ERROR)
         '''
 
-        if VERBOSE: rospy.loginfo("Performing the arc motion")
+        if self.state != "CORN_OFFSET":
+            rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_OFFSET"))
+            return ArcCornResponse(success="ERROR")
 
-        # check condition to verify if xArm should move through ext. mechanisms
-        if(self.flag == 1):
-            self.GoEMPlane()
+        if VERBOSE: rospy.loginfo("Performing the arc motion")
 
         # Get the current gripper position
         trans = self.tfBuffer.lookup_transform('link_base', 'link_eef', rospy.Time(), rospy.Duration(3.0)).transform.translation
@@ -351,6 +355,7 @@ qq
 
         self.absolute_angle += req.relative_angle
 
+        self.state = "CORN_OFFSET"
         return ArcCornResponse(absolute_angle=self.absolute_angle, success="DONE")
     
 
