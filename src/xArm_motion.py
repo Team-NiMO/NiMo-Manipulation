@@ -5,8 +5,6 @@ import time
 import tf2_ros
 from xarm.wrapper import XArmAPI
 from geometry_msgs.msg import Point, TransformStamped
-
-from stalk_detect.srv import GetStalk
 from nimo_manipulation.srv import *
 
 VERBOSE = True
@@ -22,6 +20,10 @@ class xArm_Motion():
         self.arm.set_mode(0)
         self.arm.set_state(state=0)
 
+        # Set self collision for the xArm
+        self.arm.set_self_collision_detection(on_off=True)
+        self.arm.set_collision_tool_model(22, x=226.06, y=76.2, z=195.58)
+
         # Setup services
         self.get_xArm_service = rospy.Service('GoHome', GoHome, self.GoHome)
         self.get_xArm_service = rospy.Service('GoEM', GoEM, self.GoEM)
@@ -35,8 +37,9 @@ class xArm_Motion():
         self.absolute_angle = 0 # angle at which the xarm is facing the cornstalk
 
         self.broadcaster = tf2_ros.StaticTransformBroadcaster()
-        self.tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
-        tf2_ros.TransformListener(self.tfBuffer)
+
+        tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
+        tf2_ros.TransformListener(tfBuffer)
 
         if VERBOSE: rospy.loginfo('Waiting for service calls...')        
 
@@ -168,8 +171,11 @@ class xArm_Motion():
 
         self.broadcaster.sendTransform(cornTransform)
         
+        tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
+        
         # Get the relative movement to the cornstalk
-        delta = self.tfBuffer.lookup_transform('corn_cam', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
+        tf2_ros.TransformListener(tfBuffer)
+        delta = tfBuffer.lookup_transform('corn_cam', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
         del_x, del_y, del_z = -delta.x * 1000, (-delta.y + 0.15) * 1000, -delta.z * 1000 
 
         # Update relative movement with offset
@@ -217,8 +223,11 @@ class xArm_Motion():
 
         self.broadcaster.sendTransform(cornTransform)
 
+        tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
+        tf2_ros.TransformListener(tfBuffer)
+
         # Get the relative movement to the cornstalk
-        delta = self.tfBuffer.lookup_transform('corn_cam', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
+        delta = tfBuffer.lookup_transform('corn_cam', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
         del_x, del_y, del_z = -delta.x * 1000, -delta.y * 1000, -delta.z * 1000 
 
         # Move to pre-grasp 1/2
@@ -245,8 +254,8 @@ class xArm_Motion():
 
         # Move to insertion angle
 
-        trans = self.tfBuffer.lookup_transform('link_base', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
-        radius = self.tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
+        trans = tfBuffer.lookup_transform('link_base', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
+        radius = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
         x_curr, y_curr = trans.x, trans.y
 
         # Determine the offset to move in x and y 
@@ -333,9 +342,12 @@ class xArm_Motion():
 
         if VERBOSE: rospy.loginfo("Performing the arc motion")
 
+        tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
+        tf2_ros.TransformListener(tfBuffer)
+
         # Get the current gripper position
-        trans = self.tfBuffer.lookup_transform('link_base', 'link_eef', rospy.Time(), rospy.Duration(3.0)).transform.translation
-        radius = self.tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
+        trans = tfBuffer.lookup_transform('link_base', 'link_eef', rospy.Time(), rospy.Duration(3.0)).transform.translation
+        radius = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
         x_curr, y_curr = trans.x, trans.y
 
         c_x = x_curr - (0.15 + radius) * np.sin(np.radians(self.absolute_angle))
