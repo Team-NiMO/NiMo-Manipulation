@@ -114,19 +114,19 @@ class xArm_Motion():
             if VERBOSE: rospy.loginfo("Going to Cleaning Nozzle")
 
             # Joint angles corresponding to end-effector at the cleaning nozzle
-            code = self.arm.set_servo_angle(angle=[-133.6, 56.9, -53.4, 46, -85.6, 0], is_radian=False, wait=True)
+            code = self.arm.set_servo_angle(angle=[-125.1, 85, -74.8, 55.2, -96.5, -87.3], is_radian=False, wait=True)
 
         elif req.id == "cal_low":
             if VERBOSE: rospy.loginfo("Going to Low Calibration Nozzle")
 
             # Joint angles corresponding to end-effector at the low calibration nozzle
-            code = self.arm.set_servo_angle(angle=[-118.3, 60.2, -69.9, 62.8, -77.9, -13.2], is_radian=False, wait=True)
+            code = self.arm.set_servo_angle(angle=[-115.3, 89.1, -96, 64.4, -87.6, -102.1], is_radian=False, wait=True)
 
         elif req.id == "cal_high":
             if VERBOSE: rospy.loginfo("Going to High Calibration Nozzle")
             
             # Joint angles corresponding to end-effector at the high calibration nozzle
-            code = self.arm.set_servo_angle(angle=[-110.4, 75.9, -107.8, 73, -74.5, -33.8], is_radian=False, wait=True)
+            code = self.arm.set_servo_angle(angle=[-109, 110.8, -148.8, 73.3, -76.9, -132.7], is_radian=False, wait=True)
 
         if code != 0:
             rospy.logerr("set_servo_angle returned error {}".format(code))
@@ -373,5 +373,5 @@ class xArm_Motion():
 
 if __name__ == '__main__':
     rospy.init_node('nimo_manipulation')
-    detect_node = xArm_Motion('192.168.1.214')
+    detect_node = xArm_Motion('192.168.1.196')
     rospy.spin()
