@@ -81,7 +81,7 @@ class xArm_Motion():
         if VERBOSE: rospy.loginfo('Going to External Mechanisms Plane')
 
         # Joint angles corresponding to external mechanisms plane
-        code = self.arm.set_servo_angle(angle=[-90, 41.5, -40.3, 0, -88.3, 0], is_radian=False, wait=True)
+        code = self.arm.set_servo_angle(angle=[-90, 41.5, -40.3, 0, -88.3, -90], is_radian=False, wait=True)
 
         if code != 0:
             rospy.logerr("set_servo_angle returned error {}".format(code))
@@ -126,7 +126,7 @@ class xArm_Motion():
             if VERBOSE: rospy.loginfo("Going to High Calibration Nozzle")
             
             # Joint angles corresponding to end-effector at the high calibration nozzle
-            code = self.arm.set_servo_angle(angle=[-109, 110.8, -148.8, 73.3, -76.9, -132.7], is_radian=False, wait=True)
+            code = self.arm.set_servo_angle(angle=[-108.7, 110.3, -149.4, 73, -76.8, -129.8], is_radian=False, wait=True)
 
         if code != 0:
             rospy.logerr("set_servo_angle returned error {}".format(code))
