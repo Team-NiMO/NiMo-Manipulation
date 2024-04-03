@@ -57,7 +57,7 @@ class xArm_Motion():
         if self.state == "CORN_HOOK":
             rospy.logerr("Invalid Command: Cannot move from {} to {} via GoHome".format(self.state, "HOME"))
             return GoHomeResponse(success="ERROR")
-        elif self.state == "EM":
+        elif self.state in ["clean", "cal_low", "cal_high"]:
             self.GoEMPlane()
 
         if VERBOSE: rospy.loginfo('Going to Home Position')
@@ -107,12 +107,17 @@ class xArm_Motion():
 
         if self.state == "HOME":
             self.GoEMPlane()
-        elif self.state != "EM":
+        # elif self.state != "EM":
+        elif self.state not in ["clean", "cal_low", "cal_high"]:
             rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "EM"))
             return GoEMResponse(success="ERROR")
 
         if req.id == "clean":
             if VERBOSE: rospy.loginfo("Going to Cleaning Nozzle")
+
+            if self.state == "cal_high":
+                # move to the cal_low nozzle before moving to the clean nozzle
+                code = self.arm.set_servo_angle(angle=[-115.3, 89.1, -96, 64.4, -87.6, -102.1], is_radian=False, wait=True)
 
             # Joint angles corresponding to end-effector at the cleaning nozzle
             code = self.arm.set_servo_angle(angle=[-125.1, 85, -74.8, 55.2, -96.5, -87.3], is_radian=False, wait=True)
@@ -125,6 +130,10 @@ class xArm_Motion():
 
         elif req.id == "cal_high":
             if VERBOSE: rospy.loginfo("Going to High Calibration Nozzle")
+
+            if self.state == "clean":
+                # move to the cal_low nozzle before moving to the cal_high nozzle
+                code = self.arm.set_servo_angle(angle=[-115.3, 89.1, -96, 64.4, -87.6, -102.1], is_radian=False, wait=True)
             
             # Joint angles corresponding to end-effector at the high calibration nozzle
             code = self.arm.set_servo_angle(angle=[-108.7, 110.3, -149.4, 73, -76.8, -129.8], is_radian=False, wait=True)
@@ -133,7 +142,7 @@ class xArm_Motion():
             rospy.logerr("set_servo_angle returned error {}".format(code))
             return GoEMResponse(success="ERROR")
         
-        self.state = "EM"
+        self.state = req.id
         return GoEMResponse(success="DONE")
 
     @classmethod
