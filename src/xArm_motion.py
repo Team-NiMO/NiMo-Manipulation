@@ -28,6 +28,7 @@ class xArm_Motion():
         self.get_xArm_service = rospy.Service('GoHome', GoHome, self.GoHome)
         self.get_xArm_service = rospy.Service('GoEM', GoEM, self.GoEM)
         self.get_xArm_service = rospy.Service('GoCorn', GoCorn, self.GoCorn)
+        self.get_xArm_service = rospy.Service('UngoCorn', UngoCorn, self.UngoCorn)
         self.get_xArm_service = rospy.Service('ArcCorn', ArcCorn, self.ArcCorn)
         self.get_xArm_service = rospy.Service('HookCorn', HookCorn, self.HookCorn)
         self.get_xArm_service = rospy.Service('UnhookCorn', UnhookCorn, self.UnhookCorn)
@@ -179,7 +180,7 @@ class xArm_Motion():
         del_x, del_y, del_z = -delta.x * 1000, (-delta.y + 0.15) * 1000, -delta.z * 1000 
 
         # Update relative movement with offset
-        del_x, del_y, del_z = del_x, del_y, del_z
+        self.del_x, self.del_y, self.del_z = del_x, del_y, del_z
 
         code = self.arm.set_position_aa(axis_angle_pose=[del_x, del_y, del_z, 0, 0, 0], speed=50, relative=True, wait=True)
 
@@ -189,6 +190,37 @@ class xArm_Motion():
 
         self.state = "CORN_OFFSET"
         return GoCornResponse(success="DONE")
+    
+    @classmethod
+    def UngoCorn(self, req: UngoCornRequest) -> UngoCornResponse:
+        '''
+        Reverse motion of GoCorn and return to home position
+        
+        Returns:
+            UngoCornResponse: The response:
+                           - success - The success of the operation (DONE / ERROR)
+        '''
+        if self.state != "CORN_OFFSET":
+            rospy.logerr("Invalid Command: Cannot move from {} to {} via UngoCorn".format(self.state, "HOME"))
+            return UngoCornResponse(success="ERROR")
+
+        if VERBOSE: rospy.loginfo("Unapproaching the cornstalk")
+
+        code = self.arm.set_position_aa(axis_angle_pose=[-self.del_x, -self.del_y, -self.del_z, 0, 0, 0], speed=50, relative=True, wait=True)
+
+        if code != 0:
+            rospy.logerr("set_arm_position_aa returned error {}".format(code))
+            return UngoCornResponse(success="ERROR")
+        
+        # Joint angles corresponding to end-effector facing the left side of the amiga base
+        code = self.arm.set_servo_angle(angle=[0, -90, 0, -90, 90, 0], is_radian=False, wait=True)
+
+        if code != 0:
+            rospy.logerr("set_arm_position_aa returned error {}".format(code))
+            return UngoCornResponse(success="ERROR")
+
+        self.state = "HOME"
+        return UngoCornResponse(success="DONE")
 
     @classmethod
     def HookCorn(self, req: HookCornRequest) -> HookCornResponse:
