@@ -1,0 +1,9 @@
+<launch>
+
+<include file="$(find xarm6_moveit_config)/launch/realMove_exec.launch">
+    <arg name="show_rviz" value="false"/>
+</include>
+
+<node pkg="nimo_manipulation" name="nimo_manipulation" type="xArm_motion.py" output="screen"/>
+
+</launch>
