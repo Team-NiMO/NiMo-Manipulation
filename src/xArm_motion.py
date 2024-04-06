@@ -5,6 +5,7 @@ import time
 import tf2_ros
 from xarm.wrapper import XArmAPI
 from geometry_msgs.msg import Point, TransformStamped
+from sensor_msgs.msg import JointState
 from nimo_manipulation.srv import *
 
 VERBOSE = True
@@ -14,6 +15,11 @@ class xArm_Motion():
     def __init__(self, ip_addr):
         if VERBOSE: rospy.loginfo('Starting xArm_motion node.')
         
+        try:
+            rospy.wait_for_message("/xarm/joint_states", JointState, timeout=5)
+        except rospy.ROSException:
+            rospy.logwarn('Unable to connect to xArm')
+
         # Initialize xArm
         self.arm = XArmAPI(ip_addr)
         self.arm.motion_enable(enable=True)
