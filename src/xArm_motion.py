@@ -32,6 +32,7 @@ class xArm_Motion():
 
         # Setup services
         self.get_xArm_service = rospy.Service('GoHome', GoHome, self.GoHome)
+        self.get_xArm_service = rospy.Service('LookatCorn', LookatCorn, self.LookatCorn)
         self.get_xArm_service = rospy.Service('GoEM', GoEM, self.GoEM)
         self.get_xArm_service = rospy.Service('GoCorn', GoCorn, self.GoCorn)
         self.get_xArm_service = rospy.Service('UngoCorn', UngoCorn, self.UngoCorn)
@@ -78,6 +79,36 @@ class xArm_Motion():
         self.state = "HOME"
 
         return GoHomeResponse(success="DONE")
+    
+    @classmethod
+    def LookatCorn(self, req: LookatCornRequest) -> LookatCornResponse:
+        '''
+        Moves the xArm to look at corn row for StalkDetect
+
+        Returns:
+            LookatCornResponse: The response
+                                - success - The success of the operation (DONE / ERROR)
+        '''
+
+        if self.state != "HOME":
+            rospy.logerr("Invalid Command: Cannot move from {} to LookatCorn".format(self.state))
+            return LookatCornResponse(success="ERROR")
+        elif self.state in ["clean", "cal_low", "cal_high"]:
+            self.GoEMPlane()
+
+        if VERBOSE: rospy.loginfo('Going to LookatCorn Position')
+
+        # Joint angles corresponding to end-effector facing the left side of the amiga base
+        code = self.arm.set_servo_angle(angle=[0, -90, 0, -104.1, 90, 0], is_radian=False, wait=True)
+
+        if code != 0:
+            rospy.logerr("set_servo_angle returned error {}".format(code))
+            return LookatCornResponse(success="ERROR")
+
+        self.state = "LookatCorn"
+
+        return LookatCornResponse(success="DONE")
+
 
     @classmethod
     def GoEMPlane(self):
@@ -188,6 +219,14 @@ class xArm_Motion():
         self.broadcaster.sendTransform(cornTransform)
         
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
+
+        if req.grasp_point.x < 0:
+            # include pre grasp pose
+            code = self.arm.set_servo_angle(angle=[-90, -90, 0, -90, 0, 0], is_radian=False, wait=True)
+
+            if code != 0:
+                rospy.logerr("set_servo_angle returned error {}".format(code))
+                return GoHomeResponse(success="ERROR")
         
         # Get the relative movement to the cornstalk
         tf2_ros.TransformListener(tfBuffer)
@@ -273,27 +312,45 @@ class xArm_Motion():
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
         tf2_ros.TransformListener(tfBuffer)
 
+        if req.grasp_point.x < 0:
+            # include pre grasp pose
+            code = self.arm.set_servo_angle(angle=[-90, -90, 0, -90, 0, 0], is_radian=False, wait=True)
+
+            if code != 0:
+                rospy.logerr("set_servo_angle returned error {}".format(code))
+                return GoHomeResponse(success="ERROR")
+
         # Get the relative movement to the cornstalk
         delta = tfBuffer.lookup_transform('corn_cam', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
         del_x, del_y, del_z = -delta.x * 1000, -delta.y * 1000, -delta.z * 1000 
+        del_x += (del_x - 0.144) * 0.026 + 0.05
+
+        del_y -= 10
 
         # Move to pre-grasp 1/2
         x_mov, y_mov, z_mov = del_x-85, del_y+150, del_z
-        code = self.arm.set_position_aa(axis_angle_pose=[x_mov, y_mov, z_mov, 0, 0, 0], speed=50, relative=True, wait=True)
+        
+        # stored for unhook "pre-grasp"
+        
+        # MODIFIED
+        self.x_mov_unhook, self.y_mov_unhook, self.z_mov_unhook = -x_mov, -y_mov, -z_mov
+        # code = self.arm.set_position_aa(axis_angle_pose=[x_mov, y_mov, z_mov, 0, 0, 0], speed=50, relative=True, wait=True)
+        code = self.arm.set_position_aa(axis_angle_pose=[0, y_mov, z_mov, 0, 0, 0], speed=50, relative=True, wait=True)
+        code = self.arm.set_position_aa(axis_angle_pose=[x_mov, 0, 0, 0, 0, 0], speed=50, relative=True, wait=True)
 
         if code != 0:
             rospy.logerr("set_arm_position_aa returned error {}".format(code))
             return HookCornResponse(success="ERROR")
         
         # Move to pre-grasp 2/2
-        code = self.arm.set_position_aa(axis_angle_pose=[0, -150, 0, 0, 0, 0], speed=50, relative=True, wait=True)
+        code = self.arm.set_position_aa(axis_angle_pose=[0, -150, 0, 0, 0, 0], speed=30, relative=True, wait=True)
 
         if code != 0:
             rospy.logerr("set_arm_position_aa returned error {}".format(code))
             return HookCornResponse(success="ERROR")
         
         # Move to grasp
-        code = self.arm.set_position_aa(axis_angle_pose=[85, 0, 0, 0, 0, 0], speed=50, relative=True, wait=True)
+        code = self.arm.set_position_aa(axis_angle_pose=[85, 0, 0, 0, 0, 0], speed=30, relative=True, wait=True)
 
         if code != 0:
             rospy.logerr("set_arm_position_aa returned error {}".format(code))
@@ -353,6 +410,15 @@ class xArm_Motion():
         
         # Move to pre-grasp
         code = self.arm.set_position_aa(axis_angle_pose=[0, 150, 0, 0, 0, 0], speed=50, relative=True, wait=True)
+
+        if code != 0:
+            rospy.logerr("set_arm_position_aa returned error {}".format(code))
+            return UnhookCornResponse(success="ERROR")
+        
+        # MODIFIED
+        # code = self.arm.set_position_aa(axis_angle_pose=[self.x_mov_unhook, self.y_mov_unhook, self.z_mov_unhook, 0, 0, 0], speed=50, relative=True, wait=True)
+        code = self.arm.set_position_aa(axis_angle_pose=[self.x_mov_unhook, 0, 0, 0, 0, 0], speed=50, relative=True, wait=True)
+        code = self.arm.set_position_aa(axis_angle_pose=[0, self.y_mov_unhook, self.z_mov_unhook, 0, 0, 0], speed=50, relative=True, wait=True)
 
         if code != 0:
             rospy.logerr("set_arm_position_aa returned error {}".format(code))

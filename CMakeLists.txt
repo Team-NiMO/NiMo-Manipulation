@@ -56,6 +56,7 @@ add_service_files(
   GoCorn.srv
   GoEM.srv
   GoHome.srv
+  LookatCorn.srv
   UngoCorn.srv
   HookCorn.srv
   UnhookCorn.srv
