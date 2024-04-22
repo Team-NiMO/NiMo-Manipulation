@@ -2,18 +2,18 @@
 import numpy as np
 import rospy
 import time
+import yaml
+import rospkg
 import tf2_ros
 from xarm.wrapper import XArmAPI
 from geometry_msgs.msg import Point, TransformStamped
 from sensor_msgs.msg import JointState
 from nimo_manipulation.srv import *
 
-VERBOSE = True
-
 class xArm_Motion():
     @classmethod
     def __init__(self, ip_addr):
-        if VERBOSE: rospy.loginfo('Starting xArm_motion node.')
+        if self.verbose: rospy.loginfo('Starting xArm_motion node.')
         
         try:
             rospy.wait_for_message("/xarm/joint_states", JointState, timeout=5)
@@ -49,7 +49,20 @@ class xArm_Motion():
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
         tf2_ros.TransformListener(tfBuffer)
 
-        if VERBOSE: rospy.loginfo('Waiting for service calls...')        
+        if self.verbose: rospy.loginfo('Waiting for service calls...')        
+
+    def loadConfig(self):
+        '''
+        Load configuration from yaml file
+        '''
+
+        rospack = rospkg.RosPack()
+        self.package_path = rospack.get_path('nimo_manipulation')
+        config_path = self.package_path + '/config/default.yaml'
+        with open(config_path) as file:
+            config = yaml.load(file, Loader=yaml.FullLoader)
+
+        self.verbose = config["debug"]["verbose"]
 
     @classmethod 
     def GoHome(self, req: GoHomeRequest) -> GoHomeResponse:
@@ -67,7 +80,7 @@ class xArm_Motion():
         elif self.state in ["clean", "cal_low", "cal_high"]:
             self.GoEMPlane()
 
-        if VERBOSE: rospy.loginfo('Going to Home Position')
+        if self.verbose: rospy.loginfo('Going to Home Position')
 
         # Joint angles corresponding to end-effector facing the left side of the amiga base
         code = self.arm.set_servo_angle(angle=[0, -90, 0, -90, 90, 0], is_radian=False, wait=True)
@@ -96,7 +109,7 @@ class xArm_Motion():
         elif self.state in ["clean", "cal_low", "cal_high"]:
             self.GoEMPlane()
 
-        if VERBOSE: rospy.loginfo('Going to LookatCorn Position')
+        if self.verbose: rospy.loginfo('Going to LookatCorn Position')
 
         # Joint angles corresponding to end-effector facing the left side of the amiga base
         code = self.arm.set_servo_angle(angle=[0, -90, 0, -104.1, 90, 0], is_radian=False, wait=True)
@@ -116,7 +129,7 @@ class xArm_Motion():
         Move the xArm to the external mechanisms plane
         '''
         
-        if VERBOSE: rospy.loginfo('Going to External Mechanisms Plane')
+        if self.verbose: rospy.loginfo('Going to External Mechanisms Plane')
 
         # Joint angles corresponding to external mechanisms plane
         code = self.arm.set_servo_angle(angle=[-90, 41.5, -40.3, 0, -88.3, -90], is_radian=False, wait=True)
@@ -150,7 +163,7 @@ class xArm_Motion():
             return GoEMResponse(success="ERROR")
 
         if req.id == "clean":
-            if VERBOSE: rospy.loginfo("Going to Cleaning Nozzle")
+            if self.verbose: rospy.loginfo("Going to Cleaning Nozzle")
 
             if self.state == "cal_high":
                 # move to the cal_low nozzle before moving to the clean nozzle
@@ -160,13 +173,13 @@ class xArm_Motion():
             code = self.arm.set_servo_angle(angle=[-125.1, 85, -74.8, 55.2, -96.5, -87.3], is_radian=False, wait=True)
 
         elif req.id == "cal_low":
-            if VERBOSE: rospy.loginfo("Going to Low Calibration Nozzle")
+            if self.verbose: rospy.loginfo("Going to Low Calibration Nozzle")
 
             # Joint angles corresponding to end-effector at the low calibration nozzle
             code = self.arm.set_servo_angle(angle=[-115.3, 89.1, -96, 64.4, -87.6, -102.1], is_radian=False, wait=True)
 
         elif req.id == "cal_high":
-            if VERBOSE: rospy.loginfo("Going to High Calibration Nozzle")
+            if self.verbose: rospy.loginfo("Going to High Calibration Nozzle")
 
             if self.state == "clean":
                 # move to the cal_low nozzle before moving to the cal_high nozzle
@@ -200,7 +213,7 @@ class xArm_Motion():
             rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_OFFSET"))
             return GoCornResponse(success="ERROR")
 
-        if VERBOSE: rospy.loginfo("Going to the cornstalk {}, {}, {}".format(req.grasp_point.x, req.grasp_point.y, req.grasp_point.z))
+        if self.verbose: rospy.loginfo("Going to the cornstalk {}, {}, {}".format(req.grasp_point.x, req.grasp_point.y, req.grasp_point.z))
 
         # Reset the absolute angle to the cornstalk
         self.absolute_angle = 0
@@ -258,7 +271,7 @@ class xArm_Motion():
             rospy.logerr("Invalid Command: Cannot move from {} to {} via UngoCorn".format(self.state, "HOME"))
             return UngoCornResponse(success="ERROR")
 
-        if VERBOSE: rospy.loginfo("Unapproaching the cornstalk")
+        if self.verbose: rospy.loginfo("Unapproaching the cornstalk")
 
         code = self.arm.set_position_aa(axis_angle_pose=[-self.del_x, -self.del_y, -self.del_z, 0, 0, 0], speed=50, relative=True, wait=True)
 
@@ -294,7 +307,7 @@ class xArm_Motion():
             rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_HOOK"))
             return HookCornResponse(success="ERROR")
 
-        if VERBOSE: rospy.loginfo("Hooking cornstalk {}, {}, {}".format(req.grasp_point.x, req.grasp_point.y, req.grasp_point.z))
+        if self.verbose: rospy.loginfo("Hooking cornstalk {}, {}, {}".format(req.grasp_point.x, req.grasp_point.y, req.grasp_point.z))
 
         # Create the transform to the grasp point
         cornTransform = TransformStamped()
@@ -393,7 +406,7 @@ class xArm_Motion():
             rospy.logerr("Invalid Command: Cannot move from {} to {} via UnhookCorn".format(self.state, "HOME"))
             return UnhookCornResponse(success="ERROR")
 
-        if VERBOSE: rospy.loginfo("Unhooking cornstalk")
+        if self.verbose: rospy.loginfo("Unhooking cornstalk")
 
         code = self.arm.set_position_aa(axis_angle_pose=[self.unhook_x, self.unhook_y, 0, 0, 0, -self.absolute_angle], speed=50, relative=True, wait=True, is_radian=False)
         
@@ -453,7 +466,7 @@ class xArm_Motion():
             rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_OFFSET"))
             return ArcCornResponse(success="ERROR")
 
-        if VERBOSE: rospy.loginfo("Performing the arc motion")
+        if self.verbose: rospy.loginfo("Performing the arc motion")
 
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
         tf2_ros.TransformListener(tfBuffer)

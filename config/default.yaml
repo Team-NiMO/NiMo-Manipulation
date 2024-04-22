@@ -1,0 +1,2 @@
+debug:
+  verbose: True # Whether to log information and warnings
