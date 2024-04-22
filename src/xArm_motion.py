@@ -13,6 +13,8 @@ from nimo_manipulation.srv import *
 class xArm_Motion():
     @classmethod
     def __init__(self, ip_addr):
+        self.loadConfig()
+
         if self.verbose: rospy.loginfo('Starting xArm_motion node.')
         
         try:
