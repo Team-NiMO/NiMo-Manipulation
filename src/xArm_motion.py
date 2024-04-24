@@ -65,6 +65,7 @@ class xArm_Motion():
             config = yaml.load(file, Loader=yaml.FullLoader)
 
         self.verbose = config["debug"]["verbose"]
+        self.approach = config["gripper"]["approach"]
 
     @classmethod 
     def GoHome(self, req: GoHomeRequest) -> GoHomeResponse:
@@ -339,37 +340,58 @@ class xArm_Motion():
         delta = tfBuffer.lookup_transform('corn_cam', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
         del_x, del_y, del_z = -delta.x * 1000, -delta.y * 1000, -delta.z * 1000 
         del_x += (del_x - 0.144) * 0.026 + 0.05
-
         del_y -= 10
 
-        # Move to pre-grasp 1/2
-        x_mov, y_mov, z_mov = del_x-85, del_y+150, del_z
-        
-        # stored for unhook "pre-grasp"
-        
-        # MODIFIED
-        self.x_mov_unhook, self.y_mov_unhook, self.z_mov_unhook = -x_mov, -y_mov, -z_mov
-        # code = self.arm.set_position_aa(axis_angle_pose=[x_mov, y_mov, z_mov, 0, 0, 0], speed=50, relative=True, wait=True)
-        code = self.arm.set_position_aa(axis_angle_pose=[0, y_mov, z_mov, 0, 0, 0], speed=50, relative=True, wait=True)
-        code = self.arm.set_position_aa(axis_angle_pose=[x_mov, 0, 0, 0, 0, 0], speed=50, relative=True, wait=True)
+        if self.approach == "left":
+            # Move to pre-grasp 1/2
+            x_mov, y_mov, z_mov = del_x-85, del_y+150, del_z
+            
+            # stored for unhook "pre-grasp"
+            
+            # MODIFIED
+            self.x_mov_unhook, self.y_mov_unhook, self.z_mov_unhook = -x_mov, -y_mov, -z_mov
+            # code = self.arm.set_position_aa(axis_angle_pose=[x_mov, y_mov, z_mov, 0, 0, 0], speed=50, relative=True, wait=True)
+            code = self.arm.set_position_aa(axis_angle_pose=[0, y_mov, z_mov, 0, 0, 0], speed=50, relative=True, wait=True)
+            code = self.arm.set_position_aa(axis_angle_pose=[x_mov, 0, 0, 0, 0, 0], speed=50, relative=True, wait=True)
 
-        if code != 0:
-            rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return HookCornResponse(success="ERROR")
-        
-        # Move to pre-grasp 2/2
-        code = self.arm.set_position_aa(axis_angle_pose=[0, -150, 0, 0, 0, 0], speed=30, relative=True, wait=True)
+            if code != 0:
+                rospy.logerr("set_arm_position_aa returned error {}".format(code))
+                return HookCornResponse(success="ERROR")
+            
+            # Move to pre-grasp 2/2
+            code = self.arm.set_position_aa(axis_angle_pose=[0, -150, 0, 0, 0, 0], speed=30, relative=True, wait=True)
 
-        if code != 0:
-            rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return HookCornResponse(success="ERROR")
-        
-        # Move to grasp
-        code = self.arm.set_position_aa(axis_angle_pose=[85, 0, 0, 0, 0, 0], speed=30, relative=True, wait=True)
+            if code != 0:
+                rospy.logerr("set_arm_position_aa returned error {}".format(code))
+                return HookCornResponse(success="ERROR")
+            
+            # Move to grasp
+            code = self.arm.set_position_aa(axis_angle_pose=[85, 0, 0, 0, 0, 0], speed=30, relative=True, wait=True)
 
-        if code != 0:
-            rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return HookCornResponse(success="ERROR")
+            if code != 0:
+                rospy.logerr("set_arm_position_aa returned error {}".format(code))
+                return HookCornResponse(success="ERROR")
+        
+        elif self.approach == "front":
+            x_mov, y_mov, z_mov = del_x, del_y+150, del_z
+            self.x_mov_unhook, self.y_mov_unhook, self.z_mov_unhook = -x_mov, -y_mov, -z_mov
+            code = self.arm.set_position_aa(axis_angle_pose=[0, y_mov, z_mov, 0, 0, 0], speed=50, relative=True, wait=True)
+
+            if code != 0:
+                rospy.logerr("set_arm_position_aa returned error {}".format(code))
+                return HookCornResponse(success="ERROR")
+            
+            code = self.arm.set_position_aa(axis_angle_pose=[x_mov, 0, 0, 0, 0, 0], speed=50, relative=True, wait=True)
+
+            if code != 0:
+                rospy.logerr("set_arm_position_aa returned error {}".format(code))
+                return HookCornResponse(success="ERROR")
+            
+            code = self.arm.set_position_aa(axis_angle_pose=[0, -150, 0, 0, 0, 0], speed=30, relative=True, wait=True)
+
+            if code != 0:
+                rospy.logerr("set_arm_position_aa returned error {}".format(code))
+                return HookCornResponse(success="ERROR")
 
         # Move to insertion angle
 
