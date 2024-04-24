@@ -60,6 +60,7 @@ add_service_files(
   UngoCorn.srv
   HookCorn.srv
   UnhookCorn.srv
+  LookatAngle.srv
 )
 
 ## Generate actions in the 'action' folder
