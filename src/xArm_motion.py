@@ -53,6 +53,7 @@ class xArm_Motion():
 
         if self.verbose: rospy.loginfo('Waiting for service calls...')        
 
+    @classmethod
     def loadConfig(self):
         '''
         Load configuration from yaml file
