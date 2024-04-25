@@ -498,7 +498,7 @@ class xArm_Motion():
                               - success - The success of the operation (DONE / ERROR)
         '''
 
-        if self.state != "CORN_OFFSET":
+        if self.state != "CORN_OFFSET" and self.state!="CORN_HOOK":
             rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_OFFSET"))
             return ArcCornResponse(success="ERROR")
 
@@ -523,9 +523,23 @@ class xArm_Motion():
         # Move to offset w/ yaw angle
         code = self.arm.set_position_aa(axis_angle_pose=[del_x, del_y, 0, 0, 0, -req.relative_angle], speed=40, relative=True, wait=True, is_radian=False)
         
-        if code != 0:
-            rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return ArcCornResponse(success="ERROR")
+        # trans = tfBuffer.lookup_transform('link_base', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
+        # radius = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
+        # x_curr, y_curr = trans.x, trans.y
+
+        # # Determine the offset to move in x and y 
+        # x_pos = x_curr + radius * np.sin(np.radians(req.relative_angle))
+        # y_pos = (y_curr-radius) + radius * np.cos(np.radians(req.relative_angle))
+        # del_x, del_y = (x_pos-x_curr) * 1000, (y_pos-y_curr) * 1000
+
+        # self.unhook_x, self.unhook_y = -del_x, -del_y
+
+        # self.absolute_angle = -req.relative_angle
+        # code = self.arm.set_position_aa(axis_angle_pose=[del_x, del_y, 0, 0, 0, self.absolute_angle], speed=50, relative=True, wait=True, is_radian=False)
+
+        # if code != 0:
+        #     rospy.logerr("set_arm_position_aa returned error {}".format(code))
+        #     return ArcCornResponse(success="ERROR")
 
         self.absolute_angle += req.relative_angle
 
