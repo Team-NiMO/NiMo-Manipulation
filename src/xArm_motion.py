@@ -440,22 +440,29 @@ class xArm_Motion():
             rospy.logerr("set_arm_position_aa returned error {}".format(code))
             return UnhookCornResponse(success="ERROR")
 
-        # Move to ungrasp
-        code = self.arm.set_position_aa(axis_angle_pose=[-85, 0, 0, 0, 0, 0], speed=50, relative=True, wait=True)
+        if self.approach == "left":
+            # Move to ungrasp
+            code = self.arm.set_position_aa(axis_angle_pose=[-85, 0, 0, 0, 0, 0], speed=50, relative=True, wait=True)
 
-        if code != 0:
-            rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return UnhookCornResponse(success="ERROR")
-        
-        # Move to pre-grasp
-        code = self.arm.set_position_aa(axis_angle_pose=[0, 150, 0, 0, 0, 0], speed=50, relative=True, wait=True)
+            if code != 0:
+                rospy.logerr("set_arm_position_aa returned error {}".format(code))
+                return UnhookCornResponse(success="ERROR")
+            
+            # Move to pre-grasp
+            code = self.arm.set_position_aa(axis_angle_pose=[0, 150, 0, 0, 0, 0], speed=50, relative=True, wait=True)
 
-        if code != 0:
-            rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return UnhookCornResponse(success="ERROR")
+            if code != 0:
+                rospy.logerr("set_arm_position_aa returned error {}".format(code))
+                return UnhookCornResponse(success="ERROR")
+            
+        elif self.approach == "front":
+            # Move to pre-grasp
+            code = self.arm.set_position_aa(axis_angle_pose=[0, 150, 0, 0, 0, 0], speed=50, relative=True, wait=True)
+
+            if code != 0:
+                rospy.logerr("set_arm_position_aa returned error {}".format(code))
+                return UnhookCornResponse(success="ERROR")
         
-        # MODIFIED
-        # code = self.arm.set_position_aa(axis_angle_pose=[self.x_mov_unhook, self.y_mov_unhook, self.z_mov_unhook, 0, 0, 0], speed=50, relative=True, wait=True)
         code = self.arm.set_position_aa(axis_angle_pose=[self.x_mov_unhook, 0, 0, 0, 0, 0], speed=50, relative=True, wait=True)
         code = self.arm.set_position_aa(axis_angle_pose=[0, self.y_mov_unhook, self.z_mov_unhook, 0, 0, 0], speed=50, relative=True, wait=True)
 
