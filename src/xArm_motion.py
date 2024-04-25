@@ -23,7 +23,7 @@ class xArm_Motion():
             rospy.logwarn('Unable to connect to xArm')
 
         # Initialize xArm
-        self.arm = XArmAPI(ip_addr)
+        self.arm = XArmAPI(self.ip_address)
         self.arm.motion_enable(enable=True)
         self.arm.set_mode(0)
         self.arm.set_state(state=0)
@@ -67,6 +67,7 @@ class xArm_Motion():
 
         self.verbose = config["debug"]["verbose"]
         self.approach = config["gripper"]["approach"]
+        self.ip_address = config["arm"]["ip_address"]
 
     @classmethod 
     def GoHome(self, req: GoHomeRequest) -> GoHomeResponse:
@@ -524,5 +525,5 @@ class xArm_Motion():
 
 if __name__ == '__main__':
     rospy.init_node('nimo_manipulation')
-    detect_node = xArm_Motion('192.168.1.196')
+    detect_node = xArm_Motion()
     rospy.spin()
