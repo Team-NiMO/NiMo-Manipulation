@@ -52,7 +52,8 @@ class xArm_Motion():
         tf2_ros.TransformListener(tfBuffer)
 
         if self.verbose: rospy.loginfo('Waiting for service calls...')        
-
+    
+    @classmethod
     def loadConfig(self):
         '''
         Load configuration from yaml file
