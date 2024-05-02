@@ -12,7 +12,7 @@ from nimo_manipulation.srv import *
 
 class xArm_Motion():
     @classmethod
-    def __init__(self, ip_addr):
+    def __init__(self):
         self.loadConfig()
 
         if self.verbose: rospy.loginfo('Starting xArm_motion node.')
@@ -36,6 +36,7 @@ class xArm_Motion():
         self.get_xArm_service = rospy.Service('GoHome', GoHome, self.GoHome)
         self.get_xArm_service = rospy.Service('LookatCorn', LookatCorn, self.LookatCorn)
         self.get_xArm_service = rospy.Service('GoEM', GoEM, self.GoEM)
+        # self.get_xArm_service = rospy.Service('GoRM', GoRM, self.GoRM)
         self.get_xArm_service = rospy.Service('GoCorn', GoCorn, self.GoCorn)
         self.get_xArm_service = rospy.Service('UngoCorn', UngoCorn, self.UngoCorn)
         self.get_xArm_service = rospy.Service('ArcCorn', ArcCorn, self.ArcCorn)
@@ -83,7 +84,7 @@ class xArm_Motion():
             rospy.logerr("Invalid Command: Cannot move from {} to {} via GoHome".format(self.state, "HOME"))
             return GoHomeResponse(success="ERROR")
         elif self.state in ["clean", "cal_low", "cal_high"]:
-            self.GoEMPlane()
+            self.GoEMPlane(-1)
 
         if self.verbose: rospy.loginfo('Going to Home Position')
 
@@ -112,7 +113,7 @@ class xArm_Motion():
             rospy.logerr("Invalid Command: Cannot move from {} to LookatCorn".format(self.state))
             return LookatCornResponse(success="ERROR")
         elif self.state in ["clean", "cal_low", "cal_high"]:
-            self.GoEMPlane()
+            self.GoEMPlane(-1)
 
         if self.verbose: rospy.loginfo('Going to LookatCorn Position')
 
@@ -129,15 +130,25 @@ class xArm_Motion():
 
 
     @classmethod
-    def GoEMPlane(self):
+    def GoEMPlane(self, direction):
         '''
         Move the xArm to the external mechanisms plane
         '''
         
         if self.verbose: rospy.loginfo('Going to External Mechanisms Plane')
-
+        if direction == 1:
         # Joint angles corresponding to external mechanisms plane
-        code = self.arm.set_servo_angle(angle=[-90, 41.5, -40.3, 0, -88.3, -90], is_radian=False, wait=True)
+        # code = self.arm.set_servo_angle(angle=[-90, 41.5, -40.3, 0, -88.3, -90], is_radian=False, wait=True)
+
+        # Joint angle for Janice's gripper
+            code = self.arm.set_servo_angle(angle=[0, -10, 0, -90, 90, 0], is_radian=False, wait=True)
+        # joint angle for the arbitary EM plane position (in front and under the EM)
+            code = self.arm.set_servo_angle(angle=[-118.2, 36.1, -25.4, -116.9, 100.5, 29.5], is_radian=False, wait=True)
+        
+        else:
+            code = self.arm.set_servo_angle(angle=[-118.2, 36.1, -25.4, -116.9, 100.5, 29.5], is_radian=False, wait=True)
+            code = self.arm.set_servo_angle(angle=[0, -10, 0, -90, 90, 0], is_radian=False, wait=True)
+
 
         if code != 0:
             rospy.logerr("set_servo_angle returned error {}".format(code))
@@ -160,8 +171,9 @@ class xArm_Motion():
             rospy.logerr("Invalid Command: No such nozzle {}".format(req.id))
             return GoEMResponse(success="ERROR")
 
+
         if self.state == "HOME":
-            self.GoEMPlane()
+            self.GoEMPlane(1)
         # elif self.state != "EM":
         elif self.state not in ["clean", "cal_low", "cal_high"]:
             rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "EM"))
@@ -172,26 +184,34 @@ class xArm_Motion():
 
             if self.state == "cal_high":
                 # move to the cal_low nozzle before moving to the clean nozzle
-                code = self.arm.set_servo_angle(angle=[-115.3, 89.1, -96, 64.4, -87.6, -102.1], is_radian=False, wait=True)
+                # code = self.arm.set_servo_angle(angle=[-115.3, 89.1, -96, 64.4, -87.6, -102.1], is_radian=False, wait=True)
+
+                # Janice's gripper cal_low nozzle joint value
+                code = self.arm.set_servo_angle(angle=[-127.3, 40.8, -46.9, -127.6, 91.8, 15.1], is_radian=False, wait=True)
 
             # Joint angles corresponding to end-effector at the cleaning nozzle
-            code = self.arm.set_servo_angle(angle=[-125.1, 85, -74.8, 55.2, -96.5, -87.3], is_radian=False, wait=True)
+            # code = self.arm.set_servo_angle(angle=[-125.1, 85, -74.8, 55.2, -96.5, -87.3], is_radian=False, wait=True)
+            code = self.arm.set_servo_angle(angle=[-137.9, 37.3, -34.9, -137.7, 97.3, 21.6], is_radian=False, wait=True) # Janice's gripper
 
         elif req.id == "cal_low":
             if self.verbose: rospy.loginfo("Going to Low Calibration Nozzle")
 
             # Joint angles corresponding to end-effector at the low calibration nozzle
-            code = self.arm.set_servo_angle(angle=[-115.3, 89.1, -96, 64.4, -87.6, -102.1], is_radian=False, wait=True)
+            # code = self.arm.set_servo_angle(angle=[-115.3, 89.1, -96, 64.4, -87.6, -102.1], is_radian=False, wait=True)
+            code = self.arm.set_servo_angle(angle=[-127.3, 40.8, -46.9, -127.6, 91.8, 15.1], is_radian=False, wait=True)
 
         elif req.id == "cal_high":
             if self.verbose: rospy.loginfo("Going to High Calibration Nozzle")
 
             if self.state == "clean":
                 # move to the cal_low nozzle before moving to the cal_high nozzle
-                code = self.arm.set_servo_angle(angle=[-115.3, 89.1, -96, 64.4, -87.6, -102.1], is_radian=False, wait=True)
+                # code = self.arm.set_servo_angle(angle=[-115.3, 89.1, -96, 64.4, -87.6, -102.1], is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[-127.3, 40.8, -46.9, -127.6, 91.8, 15.1], is_radian=False, wait=True)
+
             
             # Joint angles corresponding to end-effector at the high calibration nozzle
-            code = self.arm.set_servo_angle(angle=[-108.7, 110.3, -149.4, 73, -76.8, -129.8], is_radian=False, wait=True)
+            # code = self.arm.set_servo_angle(angle=[-108.7, 110.3, -149.4, 73, -76.8, -129.8], is_radian=False, wait=True)
+            code = self.arm.set_servo_angle(angle=[-119.9, 47.2, -63.2, -120.2, 87.4, 6.1], is_radian=False, wait=True) # Janice's gripper
 
         if code != 0:
             rospy.logerr("set_servo_angle returned error {}".format(code))
@@ -199,6 +219,90 @@ class xArm_Motion():
         
         self.state = req.id
         return GoEMResponse(success="DONE")
+
+
+    # @classmethod
+    # def GoRMPrePos(self, slot, direction):
+    #     '''
+    #     Move the xArm to the replacement mechanisms plane
+    #     '''
+        
+    #     if self.verbose: rospy.loginfo("Going to Replacement Mechanisms Preload Position for Slot {}".format(slot))
+    #     if direction == 1:
+    #         code = self.arm.set_servo_angle(angle=[-180, -90, 0, -90, 90, 0], is_radian=False, wait=True)
+    #         code = self.arm.set_servo_angle(angle=[-180, 0, 0, -90, 90, 90], is_radian=False, wait=True)
+
+    #         if slot == 1:
+    #             code = self.arm.set_servo_angle(angle=[-244.6, 45.8, -39.2, -244.8, 92.8, 175], is_radian=False, wait=True)
+    #         elif slot == 2:
+    #             code = self.arm.set_servo_angle(angle=[-246.7, 46.5, -43.8, -246.7, 91.1, 178.5], is_radian=False, wait=True)
+    #         elif slot == 3:
+    #             code = self.arm.set_servo_angle(angle=[-248.6, 47.6, -43.6, -248.6, 89.6, 181.9], is_radian=False, wait=True)
+    #         elif slot == 4:
+    #             code = self.arm.set_servo_angle(angle=[-249.7, 49.0, -53.7, -249.9, 88, 185.2], is_radian=False, wait=True)
+    #         else:
+    #             code = self.arm.set_servo_angle(angle=[-251.1, 50.8, -59.1, -251.4, 86.9, 188.7], is_radian=False, wait=True)
+        
+    #     else:
+    #         if slot == 1:
+    #             code = self.arm.set_servo_angle(angle=[-244.6, 45.8, -39.2, -244.8, 92.8, 175], is_radian=False, wait=True)
+    #         elif slot == 2:
+    #             code = self.arm.set_servo_angle(angle=[-246.7, 46.5, -43.8, -246.7, 91.1, 178.5], is_radian=False, wait=True)
+    #         elif slot == 3:
+    #             code = self.arm.set_servo_angle(angle=[-248.6, 47.6, -43.6, -248.6, 89.6, 181.9], is_radian=False, wait=True)
+    #         elif slot == 4:
+    #             code = self.arm.set_servo_angle(angle=[-249.7, 49.0, -53.7, -249.9, 88, 185.2], is_radian=False, wait=True)
+    #         else:
+    #             code = self.arm.set_servo_angle(angle=[-251.1, 50.8, -59.1, -251.4, 86.9, 188.7], is_radian=False, wait=True)
+
+    #         code = self.arm.set_servo_angle(angle=[-180, 0, 0, -90, 90, 90], is_radian=False, wait=True)
+    #         code = self.arm.set_servo_angle(angle=[-180, -90, 0, -90, 90, 0], is_radian=False, wait=True)
+
+    #     if code != 0:
+    #         rospy.logerr("set_servo_angle returned error {}".format(code))
+
+    # @classmethod
+    # def GoRM(self, req: GoRMRequest) -> GoRMResponse:
+    #     '''
+    #     Move the xArm to the replacement mechanisms at the specific nozzle
+
+    #     Parameters:
+    #         req (GoRMRequest): The request:
+    #                            - id - which sensor slot to move to
+        
+    #     Returns:
+    #         GoRMResponse: The response:
+    #                       - success - The success of the operation (DONE / ERROR)
+    #     '''
+        
+    #     if req.id not in ["1", "2", "3", "4", "5"]:
+    #         rospy.logerr("Invalid Command: No such slot {}".format(req.id))
+    #         return GoRMResponse(success="ERROR")
+
+    #     if self.state == "HOME":
+    #         slot_val = int(req.id)
+    #         self.GoRMPrePos(slot_val, 1)
+    #         if slot_val == 1:
+    #             code = self.arm.set_servo_angle(angle=[-227.2, 47.6, -48.8, -227.3, 89.2, 181.9], is_radian=False, wait=True)
+    #         elif slot_val == 2:
+    #             code = self.arm.set_servo_angle(angle=[-230.4, 48.9, -53.1, -230.5, 87.3, 184.3], is_radian=False, wait=True)
+    #         elif slot_val == 3:
+    #             code = self.arm.set_servo_angle(angle=[-233.2, 50.6, -58  , -233.4, 85.5, 187], is_radian=False, wait=True)
+    #         elif slot_val == 4:
+    #             code = self.arm.set_servo_angle(angle=[-235.4, 52.1, -62.8, -236  , 83.5, 189.7], is_radian=False, wait=True)
+    #         else:
+    #             code = self.arm.set_servo_angle(angle=[-237.6, 54.1, -68.2, -238.5, 82.1, 192.7], is_radian=False, wait=True)
+            
+    #     else:
+    #         rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "RM"))
+    #         return GoRMResponse(success="ERROR")
+
+    #     if code != 0:
+    #         rospy.logerr("set_servo_angle returned error {}".format(code))
+    #         return GoRMResponse(success="ERROR")
+        
+    #     self.state = req.id
+    #     return GoRMResponse(success="DONE")
 
     @classmethod
     def GoCorn(self, req: GoCornRequest) -> GoCornResponse:
@@ -249,7 +353,7 @@ class xArm_Motion():
         # Get the relative movement to the cornstalk
         tf2_ros.TransformListener(tfBuffer)
         delta = tfBuffer.lookup_transform('corn_cam', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
-        del_x, del_y, del_z = -delta.x * 1000, (-delta.y + 0.15) * 1000, -delta.z * 1000 
+        del_x, del_y, del_z = -delta.x * 1000, (-delta.y + 0.1) * 1000, -delta.z * 1000 
 
         # Update relative movement with offset
         self.del_x, self.del_y, self.del_z = del_x, del_y, del_z
@@ -509,12 +613,12 @@ class xArm_Motion():
         radius = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
         x_curr, y_curr = trans.x, trans.y
 
-        c_x = x_curr - (0.15 + radius) * np.sin(np.radians(self.absolute_angle))
-        c_y = y_curr - (0.15 + radius) * np.cos(np.radians(self.absolute_angle))
+        c_x = x_curr - (0.1 + radius) * np.sin(np.radians(self.absolute_angle))
+        c_y = y_curr - (0.1 + radius) * np.cos(np.radians(self.absolute_angle))
 
         # Determine the offset to move in x and y
-        x_pos = c_x + (0.15 + radius) * np.sin(np.radians(req.relative_angle + self.absolute_angle))
-        y_pos = c_y + (0.15 + radius) * np.cos(np.radians(req.relative_angle + self.absolute_angle))
+        x_pos = c_x + (0.1 + radius) * np.sin(np.radians(req.relative_angle + self.absolute_angle))
+        y_pos = c_y + (0.1 + radius) * np.cos(np.radians(req.relative_angle + self.absolute_angle))
         del_x, del_y = (x_pos-x_curr) * 1000, (y_pos-y_curr) * 1000
 
         # Move to offset w/ yaw angle

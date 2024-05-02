@@ -2,7 +2,7 @@ debug:
   verbose: True               # Whether to log information and warnings
 
 arm:
-  ip_address: '192.168.1.196' # The IP address of the controlbox for the xArm
+  ip_address: '192.168.1.213' # The IP address of the controlbox for the xArm
 
 gripper:
   approach: front             # [NOTE] Options: left, front
