@@ -60,6 +60,12 @@ Note: The visualization is inverted because the arm is mounted upside-down.
 ### Resetting after errors
 If the xArm is away from the home position when an error occurs and stack needs to be reset, the safeset way to reset the arm is to put it in manual mode via the online interface and bring the arm to a position close to the home position. From there, the FSM can be restarted, or the `GoHome` service can be manually called.
 
+### Changing joint angles for external mechanisms
+Since the external mechanisms are at a fixed location, the joint angles to reach each of the nozzles are hard-coded. If the external mechanisms are adjusted, the angles can be adjusted in the function `GoEM` in the script [xArm_motion.py](/src/xArm_motion.py). If all of the nozzles are moved, there should be 5 total changes:
+- 1x Clean nozzle
+- 3x Low calibration (cal_low) nozzle
+- 1x High calibration (cal_high) nozzle
+
 ### Future Improvements
 - Consolidating UnGoCorn, UnHookCorn, GoHome
 - Better planning with MoveIt
