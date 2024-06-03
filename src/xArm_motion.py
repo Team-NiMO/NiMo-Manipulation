@@ -36,7 +36,7 @@ class xArm_Motion():
         self.get_xArm_service = rospy.Service('GoHome', GoHome, self.GoHome)
         self.get_xArm_service = rospy.Service('LookatCorn', LookatCorn, self.LookatCorn)
         self.get_xArm_service = rospy.Service('GoEM', GoEM, self.GoEM)
-        # self.get_xArm_service = rospy.Service('GoRM', GoRM, self.GoRM)
+        self.get_xArm_service = rospy.Service('GoRM', GoRM, self.GoRM)
         self.get_xArm_service = rospy.Service('GoCorn', GoCorn, self.GoCorn)
         self.get_xArm_service = rospy.Service('UngoCorn', UngoCorn, self.UngoCorn)
         self.get_xArm_service = rospy.Service('ArcCorn', ArcCorn, self.ArcCorn)
@@ -79,17 +79,23 @@ class xArm_Motion():
             GoHomeResponse: The response:
                            - success - The success of the operation (DONE / ERROR)
         '''
-
+        rospy.loginfo("Current State: {}".format(self.state))
         if self.state == "CORN_HOOK":
             rospy.logerr("Invalid Command: Cannot move from {} to {} via GoHome".format(self.state, "HOME"))
             return GoHomeResponse(success="ERROR")
         elif self.state in ["clean", "cal_low", "cal_high"]:
             self.GoEMPlane(-1)
+        elif self.state in ["RM1", "RM2", "RM3", "RM4", "RM5"]:
+            rospy.loginfo("Moving from {} to {} via GoHome".format(self.state, "HOME"))
+            slot_val = int(self.state[2:3])
+            rospy.loginfo('Starting xArm_motion node.')
+            self.GoRMPrePos(slot_val, -1)
 
         if self.verbose: rospy.loginfo('Going to Home Position')
 
         # Joint angles corresponding to end-effector facing the left side of the amiga base
         code = self.arm.set_servo_angle(angle=[0, -90, 0, -90, 90, 0], is_radian=False, wait=True)
+        code = 0
 
         if code != 0:
             rospy.logerr("set_servo_angle returned error {}".format(code))
@@ -221,88 +227,102 @@ class xArm_Motion():
         return GoEMResponse(success="DONE")
 
 
-    # @classmethod
-    # def GoRMPrePos(self, slot, direction):
-    #     '''
-    #     Move the xArm to the replacement mechanisms plane
-    #     '''
+    @classmethod
+    def GoRMPrePos(self, slot, direction):
+        '''
+        Move the xArm to the replacement mechanisms plane
+        '''
         
-    #     if self.verbose: rospy.loginfo("Going to Replacement Mechanisms Preload Position for Slot {}".format(slot))
-    #     if direction == 1:
-    #         code = self.arm.set_servo_angle(angle=[-180, -90, 0, -90, 90, 0], is_radian=False, wait=True)
-    #         code = self.arm.set_servo_angle(angle=[-180, 0, 0, -90, 90, 90], is_radian=False, wait=True)
+        if self.verbose: rospy.loginfo("Going to Replacement Mechanisms Preload Position for Slot {}".format(slot))
+        if direction == 1:
+            code = self.arm.set_servo_angle(angle=[-180, -90, 0, -90, 90, 0], is_radian=False, wait=True)
+            code = self.arm.set_servo_angle(angle=[-180, 0, 0, -90, 90, 90], is_radian=False, wait=True)
 
-    #         if slot == 1:
-    #             code = self.arm.set_servo_angle(angle=[-244.6, 45.8, -39.2, -244.8, 92.8, 175], is_radian=False, wait=True)
-    #         elif slot == 2:
-    #             code = self.arm.set_servo_angle(angle=[-246.7, 46.5, -43.8, -246.7, 91.1, 178.5], is_radian=False, wait=True)
-    #         elif slot == 3:
-    #             code = self.arm.set_servo_angle(angle=[-248.6, 47.6, -43.6, -248.6, 89.6, 181.9], is_radian=False, wait=True)
-    #         elif slot == 4:
-    #             code = self.arm.set_servo_angle(angle=[-249.7, 49.0, -53.7, -249.9, 88, 185.2], is_radian=False, wait=True)
-    #         else:
-    #             code = self.arm.set_servo_angle(angle=[-251.1, 50.8, -59.1, -251.4, 86.9, 188.7], is_radian=False, wait=True)
+            if slot == 1:
+                code = self.arm.set_servo_angle(angle=[-244.6, 45.8, -39.2, -244.8, 92.8, 175], is_radian=False, wait=True)
+            elif slot == 2:
+                code = self.arm.set_servo_angle(angle=[-246.7, 46.5, -43.8, -246.7, 91.1, 178.5], is_radian=False, wait=True)
+            elif slot == 3:
+                code = self.arm.set_servo_angle(angle=[-248.6, 47.6, -48.6, -248.6, 89.6, 181.9], is_radian=False, wait=True)
+            elif slot == 4:
+                code = self.arm.set_servo_angle(angle=[-249.7, 49.0, -53.7, -249.9, 88, 185.2], is_radian=False, wait=True)
+            else:
+                code = self.arm.set_servo_angle(angle=[-251.1, 50.8, -59.1, -251.4, 86.9, 188.7], is_radian=False, wait=True)
         
-    #     else:
-    #         if slot == 1:
-    #             code = self.arm.set_servo_angle(angle=[-244.6, 45.8, -39.2, -244.8, 92.8, 175], is_radian=False, wait=True)
-    #         elif slot == 2:
-    #             code = self.arm.set_servo_angle(angle=[-246.7, 46.5, -43.8, -246.7, 91.1, 178.5], is_radian=False, wait=True)
-    #         elif slot == 3:
-    #             code = self.arm.set_servo_angle(angle=[-248.6, 47.6, -43.6, -248.6, 89.6, 181.9], is_radian=False, wait=True)
-    #         elif slot == 4:
-    #             code = self.arm.set_servo_angle(angle=[-249.7, 49.0, -53.7, -249.9, 88, 185.2], is_radian=False, wait=True)
-    #         else:
-    #             code = self.arm.set_servo_angle(angle=[-251.1, 50.8, -59.1, -251.4, 86.9, 188.7], is_radian=False, wait=True)
+        else: ## direction == -1
+            if slot == 1:
+                code = self.arm.set_servo_angle(angle=[-244.6, 45.8, -39.2, -244.8, 92.8, 175], speed=10, is_radian=False, wait=True)
+            elif slot == 2:
+                code = self.arm.set_servo_angle(angle=[-246.7, 46.5, -43.8, -246.7, 91.1, 178.5], speed=10, is_radian=False, wait=True)
+            elif slot == 3:
+                code = self.arm.set_servo_angle(angle=[-248.6, 47.6, -48.6, -248.6, 89.6, 181.9], speed=10, is_radian=False, wait=True)
+            elif slot == 4:
+                code = self.arm.set_servo_angle(angle=[-249.7, 49.0, -53.7, -249.9, 88, 185.2], speed=10, is_radian=False, wait=True)
+            else:
+                code = self.arm.set_servo_angle(angle=[-251.1, 50.8, -59.1, -251.4, 86.9, 188.7], speed=10, is_radian=False, wait=True)
 
-    #         code = self.arm.set_servo_angle(angle=[-180, 0, 0, -90, 90, 90], is_radian=False, wait=True)
-    #         code = self.arm.set_servo_angle(angle=[-180, -90, 0, -90, 90, 0], is_radian=False, wait=True)
+            code = self.arm.set_servo_angle(angle=[-180, 0, 0, -90, 90, 90], is_radian=False, wait=True)
+            code = self.arm.set_servo_angle(angle=[-180, -90, 0, -90, 90, 0], is_radian=False, wait=True)
 
-    #     if code != 0:
-    #         rospy.logerr("set_servo_angle returned error {}".format(code))
+        if code != 0:
+            rospy.logerr("set_servo_angle returned error {}".format(code))
+        return code
 
-    # @classmethod
-    # def GoRM(self, req: GoRMRequest) -> GoRMResponse:
-    #     '''
-    #     Move the xArm to the replacement mechanisms at the specific nozzle
+    @classmethod
+    def GoRM(self, req: GoRMRequest) -> GoRMResponse:
+        '''
+        Move the xArm to the replacement mechanisms at the specific nozzle
 
-    #     Parameters:
-    #         req (GoRMRequest): The request:
-    #                            - id - which sensor slot to move to
+        Parameters:
+            req (GoRMRequest): The request:
+                               - id - which sensor slot to move to
         
-    #     Returns:
-    #         GoRMResponse: The response:
-    #                       - success - The success of the operation (DONE / ERROR)
-    #     '''
+        Returns:
+            GoRMResponse: The response:
+                          - success - The success of the operation (DONE / ERROR)
+        '''
         
-    #     if req.id not in ["1", "2", "3", "4", "5"]:
-    #         rospy.logerr("Invalid Command: No such slot {}".format(req.id))
-    #         return GoRMResponse(success="ERROR")
+        if req.id not in [1, 2, 3, 4, 5]:
+            rospy.logerr("Invalid Command: No such slot {}".format(req.id))
+            return GoRMResponse(success="ERROR")
 
-    #     if self.state == "HOME":
-    #         slot_val = int(req.id)
-    #         self.GoRMPrePos(slot_val, 1)
-    #         if slot_val == 1:
-    #             code = self.arm.set_servo_angle(angle=[-227.2, 47.6, -48.8, -227.3, 89.2, 181.9], is_radian=False, wait=True)
-    #         elif slot_val == 2:
-    #             code = self.arm.set_servo_angle(angle=[-230.4, 48.9, -53.1, -230.5, 87.3, 184.3], is_radian=False, wait=True)
-    #         elif slot_val == 3:
-    #             code = self.arm.set_servo_angle(angle=[-233.2, 50.6, -58  , -233.4, 85.5, 187], is_radian=False, wait=True)
-    #         elif slot_val == 4:
-    #             code = self.arm.set_servo_angle(angle=[-235.4, 52.1, -62.8, -236  , 83.5, 189.7], is_radian=False, wait=True)
-    #         else:
-    #             code = self.arm.set_servo_angle(angle=[-237.6, 54.1, -68.2, -238.5, 82.1, 192.7], is_radian=False, wait=True)
+        if self.state == "HOME":
+            slot_val = int(req.id)
+            code = self.GoRMPrePos(slot_val, 1)
+            if slot_val == 1:
+                self.state = "RM1"
+                code = self.arm.set_servo_angle(angle=[-227.2, 47.4, -48.7, -227.3, 89.1, 182], speed = 10, is_radian=False, wait=True)
+                # code = self.GoRMPrePos(slot_val, -1)
+            elif slot_val == 2:
+                self.state = "RM2"
+                code = self.arm.set_servo_angle(angle=[-230.4, 48.9, -53.1, -230.5, 87.3, 184.3], speed=10, is_radian=False, wait=True)
+                # code = self.GoRMPrePos(slot_val, -1)
+            elif slot_val == 3:
+                self.state = "RM3"
+                code = self.arm.set_servo_angle(angle=[-233.2, 50.6, -58  , -233.4, 85.5, 187], speed=10, is_radian=False, wait=True)
+                # code = self.GoRMPrePos(slot_val, -1)
+            elif slot_val == 4:
+                self.state = "RM4"
+                code = self.arm.set_servo_angle(angle=[-235.4, 52.1, -62.8, -236  , 83.5, 189.7], speed=10, is_radian=False, wait=True)
+                # code = self.GoRMPrePos(slot_val, -1)
+            else:
+                self.state = "RM5"
+                code = self.arm.set_servo_angle(angle=[-237.6, 54.1, -68.2, -238.5, 82.1, 192.7], speed=10, is_radian=False, wait=True)
+                # code = self.GoRMPrePos(slot_val, -1)
+
+            # slot_num = int(self.state[2:3])
+            # rospy.loginfo("slot_num:{}, {}".format(slot_num, type(slot_num)))
             
-    #     else:
-    #         rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "RM"))
-    #         return GoRMResponse(success="ERROR")
+        else:
+            rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "RM"))
+            return GoRMResponse(success="ERROR")
 
-    #     if code != 0:
-    #         rospy.logerr("set_servo_angle returned error {}".format(code))
-    #         return GoRMResponse(success="ERROR")
+        if code != 0:
+            rospy.logerr("set_servo_angle returned error {}".format(code))
+            return GoRMResponse(success="ERROR")
         
-    #     self.state = req.id
-    #     return GoRMResponse(success="DONE")
+        # self.state = req.id
+        return GoRMResponse(success="DONE")
 
     @classmethod
     def GoCorn(self, req: GoCornRequest) -> GoCornResponse:
