@@ -55,6 +55,7 @@ add_service_files(
   ArcCorn.srv
   GoCorn.srv
   GoEM.srv
+  GoRM.srv
   GoHome.srv
   LookatCorn.srv
   UngoCorn.srv
