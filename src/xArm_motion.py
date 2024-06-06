@@ -12,7 +12,7 @@ from nimo_manipulation.srv import *
 
 class xArm_Motion():
     @classmethod
-    def __init__(self):
+    def __init__(self, ip_addr):
         self.loadConfig()
 
         if self.verbose: rospy.loginfo('Starting xArm_motion node.')
@@ -23,7 +23,7 @@ class xArm_Motion():
             rospy.logwarn('Unable to connect to xArm')
 
         # Initialize xArm
-        self.arm = XArmAPI(self.ip_address)
+        self.arm = XArmAPI(ip_addr)
         self.arm.motion_enable(enable=True)
         self.arm.set_mode(0)
         self.arm.set_state(state=0)
@@ -55,7 +55,6 @@ class xArm_Motion():
 
         if self.verbose: rospy.loginfo('Waiting for service calls...')        
 
-    @classmethod
     @classmethod
     def loadConfig(self):
         '''
@@ -722,5 +721,5 @@ class xArm_Motion():
 
 if __name__ == '__main__':
     rospy.init_node('nimo_manipulation')
-    detect_node = xArm_Motion()
+    detect_node = xArm_Motion('192.168.1.196')
     rospy.spin()
