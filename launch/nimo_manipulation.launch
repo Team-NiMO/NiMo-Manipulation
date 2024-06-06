@@ -1,6 +1,6 @@
 <launch>
 
-<include file="$(find xarm6_moveit_config)/launch/realMove_exec.launch">
+<include file="$(find nimo_manipulation)/launch/realMove_exec.launch">
     <arg name="show_rviz" value="false"/>
 </include>
 
