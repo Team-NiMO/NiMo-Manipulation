@@ -402,9 +402,9 @@ class xArm_Motion():
         
         # MODIFIED
         self.x_mov_unhook, self.y_mov_unhook, self.z_mov_unhook = -x_mov, -y_mov, -z_mov
-        code = self.arm.set_position_aa(axis_angle_pose=[x_mov, y_mov, z_mov, 0, 0, 0], speed=30, relative=True, wait=True)
-        # code = self.arm.set_position_aa(axis_angle_pose=[0, 0, z_mov, 0, 0, 0], speed=30, relative=True, wait=True)
-        # code = self.arm.set_position_aa(axis_angle_pose=[x_mov, 0, 0, 0, 0, 0], speed=30, relative=True, wait=True)
+        # code = self.arm.set_position_aa(axis_angle_pose=[x_mov, y_mov, z_mov, 0, 0, 0], speed=30, relative=True, wait=True)
+        code = self.arm.set_position_aa(axis_angle_pose=[0, 0, z_mov, 0, 0, 0], speed=30, relative=True, wait=True)
+        code = self.arm.set_position_aa(axis_angle_pose=[x_mov, 0, 0, 0, 0, 0], speed=30, relative=True, wait=True)
 
         # sys.exit()
         if code != 0:
@@ -485,9 +485,9 @@ class xArm_Motion():
             return UnhookCornResponse(success="ERROR")
         
         # MODIFIED
-        code = self.arm.set_position_aa(axis_angle_pose=[self.x_mov_unhook, self.y_mov_unhook, self.z_mov_unhook, 0, 0, 0], speed=30, relative=True, wait=True)
-        # code = self.arm.set_position_aa(axis_angle_pose=[self.x_mov_unhook, 0, 0, 0, 0, 0], speed=30, relative=True, wait=True)
-        # code = self.arm.set_position_aa(axis_angle_pose=[0, 0, self.z_mov_unhook, 0, 0, 0], speed=30, relative=True, wait=True)
+        # code = self.arm.set_position_aa(axis_angle_pose=[self.x_mov_unhook, self.y_mov_unhook, self.z_mov_unhook, 0, 0, 0], speed=30, relative=True, wait=True)
+        code = self.arm.set_position_aa(axis_angle_pose=[self.x_mov_unhook, 0, 0, 0, 0, 0], speed=30, relative=True, wait=True)
+        code = self.arm.set_position_aa(axis_angle_pose=[0, 0, self.z_mov_unhook, 0, 0, 0], speed=30, relative=True, wait=True)
 
         if code != 0:
             rospy.logerr("set_arm_position_aa returned error {}".format(code))
@@ -542,24 +542,10 @@ class xArm_Motion():
 
         # Move to offset w/ yaw angle
         code = self.arm.set_position_aa(axis_angle_pose=[del_x, del_y, 0, 0, 0, -req.relative_angle], speed=40, relative=True, wait=True, is_radian=False)
-        
-        # trans = tfBuffer.lookup_transform('link_base', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
-        # radius = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
-        # x_curr, y_curr = trans.x, trans.y
 
-        # # Determine the offset to move in x and y 
-        # x_pos = x_curr + radius * np.sin(np.radians(req.relative_angle))
-        # y_pos = (y_curr-radius) + radius * np.cos(np.radians(req.relative_angle))
-        # del_x, del_y = (x_pos-x_curr) * 1000, (y_pos-y_curr) * 1000
-
-        # self.unhook_x, self.unhook_y = -del_x, -del_y
-
-        # self.absolute_angle = -req.relative_angle
-        # code = self.arm.set_position_aa(axis_angle_pose=[del_x, del_y, 0, 0, 0, self.absolute_angle], speed=30, relative=True, wait=True, is_radian=False)
-
-        # if code != 0:
-        #     rospy.logerr("set_arm_position_aa returned error {}".format(code))
-        #     return ArcCornResponse(success="ERROR")
+        if code != 0:
+            rospy.logerr("set_arm_position_aa returned error {}".format(code))
+            return ArcCornResponse(success="ERROR")
 
         self.absolute_angle += req.relative_angle
 
