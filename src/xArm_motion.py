@@ -34,6 +34,7 @@ class xArm_Motion():
 
         # Setup services
         self.get_xArm_service = rospy.Service('GoHome', GoHome, self.GoHome)
+        self.get_xArm_service = rospy.Service('GoStow', GoStow, self.GoStow)
         self.get_xArm_service = rospy.Service('LookatCorn', LookatCorn, self.LookatCorn)
         self.get_xArm_service = rospy.Service('LookatAngle', LookatAngle, self.LookatAngle)
         self.get_xArm_service = rospy.Service('GoEM', GoEM, self.GoEM)
@@ -45,7 +46,7 @@ class xArm_Motion():
         self.get_xArm_service = rospy.Service('UnhookCorn', UnhookCorn, self.UnhookCorn)
 
         # Internal variables
-        self.state = "HOME" # TODO: This may not be true on startup
+        self.state = "STOW" # TODO: This may not be true on startup
         self.absolute_angle = 0 # angle at which the xarm is facing the cornstalk
 
         self.broadcaster = tf2_ros.StaticTransformBroadcaster()
@@ -70,6 +71,30 @@ class xArm_Motion():
         self.verbose = config["debug"]["verbose"]
         self.approach = config["gripper"]["approach"]
         self.ip_address = config["arm"]["ip_address"]
+
+    @classmethod 
+    def GoStow(self, req: GoStowRequest) -> GoStowResponse:
+        '''
+        Move the xArm to the stow position (for navigation)
+        
+        Returns:
+            GoStowResponse: The response:
+                           - success - The success of the operation (DONE / ERROR)
+        '''
+        rospy.loginfo("Current State: {}".format(self.state))
+        
+        if self.verbose: rospy.loginfo('Going to Stow Position')
+
+        # Joint angles corresponding to end-effector facing the left side of the amiga base
+        code = self.arm.set_servo_angle(angle=[0, -100, 5, 0, 5, -90], speed=30, is_radian=False, wait=True)
+
+        if code != 0:
+            rospy.logerr("set_servo_angle returned error {}".format(code))
+            return GoStowResponse(success="ERROR")
+
+        self.state = "STOW"
+
+        return GoStowResponse(success="DONE")
 
     @classmethod 
     def GoHome(self, req: GoHomeRequest) -> GoHomeResponse:
