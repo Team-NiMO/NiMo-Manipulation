@@ -416,7 +416,7 @@ class xArm_Motion():
         tf2_ros.TransformListener(tfBuffer)
         delta = tfBuffer.lookup_transform('corn_cam', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
         # del_x, del_y, del_z = -delta.x * 1000, (-delta.y + 0.15) * 1000, -delta.z * 1000 
-        del_x, del_y, del_z = -delta.x * 1000, (-delta.y + 0.1) * 1000, -delta.z * 1000 
+        del_x, del_y, del_z = -delta.x * 1000, (-delta.y + 0.08) * 1000, -delta.z * 1000 
 
         # Update relative movement with offset
         self.del_x, self.del_y, self.del_z = del_x, del_y, del_z
