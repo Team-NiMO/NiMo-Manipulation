@@ -616,13 +616,13 @@ class xArm_Motion():
             x_mov, y_mov, z_mov = del_x, del_y+80, del_z
             self.x_mov_unhook, self.y_mov_unhook, self.z_mov_unhook = -x_mov, -y_mov, -z_mov
             code = self.arm.set_position_aa(axis_angle_pose=[0, 0, z_mov, 0, 0, 0], speed=30, relative=True, wait=True)
-            code = self.arm.set_position_aa(axis_angle_pose=[0, y_mov, 0, 0, 0, 0], speed=30, relative=True, wait=True)
+            code = self.arm.set_position_aa(axis_angle_pose=[x_mov, 0, 0, 0, 0, 0], speed=30, relative=True, wait=True)
 
             if code != 0:
                 rospy.logerr("set_arm_position_aa returned error {}".format(code))
                 return HookCornResponse(success="ERROR")
             
-            code = self.arm.set_position_aa(axis_angle_pose=[x_mov, 0, 0, 0, 0, 0], speed=50, relative=True, wait=True)
+            code = self.arm.set_position_aa(axis_angle_pose=[0, y_mov, 0, 0, 0, 0], speed=50, relative=True, wait=True)
 
             if code != 0:
                 rospy.logerr("set_arm_position_aa returned error {}".format(code))
@@ -702,8 +702,9 @@ class xArm_Motion():
                 rospy.logerr("set_arm_position_aa returned error {}".format(code))
                 return UnhookCornResponse(success="ERROR")
         
-        code = self.arm.set_position_aa(axis_angle_pose=[self.x_mov_unhook, 0, 0, 0, 0, 0], speed=30, relative=True, wait=True)
+        
         code = self.arm.set_position_aa(axis_angle_pose=[0, self.y_mov_unhook, 0, 0, 0, 0], speed=30, relative=True, wait=True)
+        code = self.arm.set_position_aa(axis_angle_pose=[self.x_mov_unhook, 0, 0, 0, 0, 0], speed=30, relative=True, wait=True)
         code = self.arm.set_position_aa(axis_angle_pose=[0, 0, self.z_mov_unhook, 0, 0, 0], speed=30, relative=True, wait=True)
 
         if code != 0:
