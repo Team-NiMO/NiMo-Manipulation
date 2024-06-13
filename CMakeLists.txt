@@ -56,6 +56,7 @@ add_service_files(
   GoCorn.srv
   GoEM.srv
   GoRM.srv
+  GoScan.srv
   GoStow.srv
   GoHome.srv
   LookatCorn.srv
