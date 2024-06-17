@@ -726,7 +726,7 @@ class xArm_Motion():
         # Scan pos
         code = self.arm.set_servo_angle(angle=[-90, -100, -40, 0, 50, -90], speed=30, is_radian=False, wait=True)
         # Stow pos
-        code = self.arm.set_servo_angle(angle=[0, -100, 5, 0, 5, -90], speed=30, is_radian=False, wait=True)
+        # code = self.arm.set_servo_angle(angle=[0, -100, 5, 0, 5, -90], speed=30, is_radian=False, wait=True)
 
 
 
@@ -734,7 +734,7 @@ class xArm_Motion():
             rospy.logerr("set_servo_angle returned error {}".format(code))
             return UnhookCornResponse(success="ERROR")
 
-        self.state = "STOW"
+        self.state = "SCAN"
         return UnhookCornResponse(success="DONE")
 
     @classmethod
