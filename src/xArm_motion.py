@@ -277,18 +277,25 @@ class xArm_Motion():
                 # code = self.arm.set_servo_angle(angle=[-115.3, 89.1, -96, 64.4, -87.6, -102.1], is_radian=False, wait=True)
 
                 # Janice's gripper cal_low nozzle joint value
-                code = self.arm.set_servo_angle(angle=[-127.3, 40.8, -46.9, -127.6, 91.8, 15.1], is_radian=False, wait=True)
+                # code = self.arm.set_servo_angle(angle=[-127.3, 40.8, -46.9, -127.6, 91.8, 15.1], is_radian=False, wait=True)
+                # new joint angle for janice's gripper on amiga
+                code = self.arm.set_servo_angle(angle=[-125.2, 40.3, -46.9, -125.5, 91.7, 14.6], is_radian=False, wait=True)
 
             # Joint angles corresponding to end-effector at the cleaning nozzle
             # code = self.arm.set_servo_angle(angle=[-125.1, 85, -74.8, 55.2, -96.5, -87.3], is_radian=False, wait=True)
-            code = self.arm.set_servo_angle(angle=[-137.9, 37.3, -34.9, -137.7, 97.3, 21.6], is_radian=False, wait=True) # Janice's gripper
+            # code = self.arm.set_servo_angle(angle=[-137.9, 37.3, -34.9, -137.7, 97.3, 21.6], is_radian=False, wait=True) # Janice's gripper
+            # new joint angle for janice's gripper on amiga
+            code = self.arm.set_servo_angle(angle=[-136.8, 36.5, -34.1, -136.6, 97.3, 21.6], is_radian=False, wait=True)
 
         elif req.id == "cal_low":
             if self.verbose: rospy.loginfo("Going to Low Calibration Nozzle")
 
             # Joint angles corresponding to end-effector at the low calibration nozzle
             # code = self.arm.set_servo_angle(angle=[-115.3, 89.1, -96, 64.4, -87.6, -102.1], is_radian=False, wait=True)
-            code = self.arm.set_servo_angle(angle=[-127.3, 40.8, -46.9, -127.6, 91.8, 15.1], is_radian=False, wait=True)
+            # code = self.arm.set_servo_angle(angle=[-127.3, 40.8, -46.9, -127.6, 91.8, 15.1], is_radian=False, wait=True)
+            # new joint angle for janice's gripper on amiga
+            code = self.arm.set_servo_angle(angle=[-125.2, 40.3, -46.9, -125.5, 91.7, 14.6], is_radian=False, wait=True)
+
 
         elif req.id == "cal_high":
             if self.verbose: rospy.loginfo("Going to High Calibration Nozzle")
@@ -296,12 +303,17 @@ class xArm_Motion():
             if self.state == "clean":
                 # move to the cal_low nozzle before moving to the cal_high nozzle
                 # code = self.arm.set_servo_angle(angle=[-115.3, 89.1, -96, 64.4, -87.6, -102.1], is_radian=False, wait=True)
-                code = self.arm.set_servo_angle(angle=[-127.3, 40.8, -46.9, -127.6, 91.8, 15.1], is_radian=False, wait=True)
+                # code = self.arm.set_servo_angle(angle=[-127.3, 40.8, -46.9, -127.6, 91.8, 15.1], is_radian=False, wait=True)
+                # new joint angle for janice's gripper on amiga
+                code = self.arm.set_servo_angle(angle=[-125.2, 40.3, -46.9, -125.5, 91.7, 14.6], is_radian=False, wait=True)
 
             
             # Joint angles corresponding to end-effector at the high calibration nozzle
             # code = self.arm.set_servo_angle(angle=[-108.7, 110.3, -149.4, 73, -76.8, -129.8], is_radian=False, wait=True)
-            code = self.arm.set_servo_angle(angle=[-119.9, 47.2, -63.2, -120.2, 87.4, 6.1], is_radian=False, wait=True) # Janice's gripper
+            # code = self.arm.set_servo_angle(angle=[-119.9, 47.2, -63.2, -120.2, 87.4, 6.1], is_radian=False, wait=True) # Janice's gripper
+            # new joint angle for janice's gripper on amiga
+            code = self.arm.set_servo_angle(angle=[-117.8, 46.8, -63.1, -118.1, 87.7, 5.5], is_radian=False, wait=True)
+
 
         if code != 0:
             rospy.logerr("set_servo_angle returned error {}".format(code))
