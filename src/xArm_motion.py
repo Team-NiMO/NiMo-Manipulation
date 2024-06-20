@@ -80,9 +80,9 @@ class xArm_Motion():
             GoStowResponse: The response:
                            - success - The success of the operation (DONE / ERROR)
         '''
-        if self.state != "HOME":
+        if self.state != "HOME" and self.state != "STOW":
             rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "STOW"))
-            return GoHomeResponse(success="ERROR")
+            return GoStowResponse(success="ERROR")
         
         if self.verbose: rospy.loginfo('Going to Stow Position')
 
