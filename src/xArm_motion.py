@@ -554,7 +554,7 @@ class xArm_Motion():
             UngoCornResponse: The response:
                            - success - The success of the operation (DONE / ERROR)
         '''
-        if self.state != "CORN_OFFSET":
+        if self.state != "CORN_OFFSET" and self.state != "CORN_HOOK":
             rospy.logerr("Invalid Command: Cannot move from {} to {} via UngoCorn".format(self.state, "HOME"))
             return UngoCornResponse(success="ERROR")
 
@@ -595,7 +595,7 @@ class xArm_Motion():
                               - success - The success of the operation (DONE / ERROR)
         '''
 
-        if self.state != "SCAN":
+        if self.state != "CORN_OFFSET":
             rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_HOOK"))
             return HookCornResponse(success="ERROR")
 
