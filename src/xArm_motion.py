@@ -554,7 +554,7 @@ class xArm_Motion():
             UngoCornResponse: The response:
                            - success - The success of the operation (DONE / ERROR)
         '''
-        if self.state != "CORN_OFFSET" and self.state != "CORN_HOOK":
+        if self.state != "CORN_OFFSET":
             rospy.logerr("Invalid Command: Cannot move from {} to {} via UngoCorn".format(self.state, "HOME"))
             return UngoCornResponse(success="ERROR")
 
@@ -770,17 +770,17 @@ class xArm_Motion():
             return UnhookCornResponse(success="ERROR")
         
         # Scan pos
-        code = self.arm.set_servo_angle(angle=[-90, -100, -40, 0, 50, -90], speed=30, is_radian=False, wait=True)
+        # code = self.arm.set_servo_angle(angle=[-90, -100, -40, 0, 50, -90], speed=30, is_radian=False, wait=True)
         # Stow pos
         # code = self.arm.set_servo_angle(angle=[0, -100, 5, 0, 5, -90], speed=30, is_radian=False, wait=True)
 
 
 
-        if code != 0:
-            rospy.logerr("set_servo_angle returned error {}".format(code))
-            return UnhookCornResponse(success="ERROR")
+        # if code != 0:
+        #     rospy.logerr("set_servo_angle returned error {}".format(code))
+        #     return UnhookCornResponse(success="ERROR")
 
-        self.state = "SCAN"
+        self.state = "CORN_OFFSET"
         return UnhookCornResponse(success="DONE")
 
     @classmethod
