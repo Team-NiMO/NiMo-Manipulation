@@ -392,12 +392,12 @@ class xArm_Motion():
             code = self.arm.set_servo_angle(angle=[107.1, 52.6, -63, 106.9, 87.4, -169.9], speed=30, is_radian=False, wait=True)
 
             if slot_val == 1:
-
+                code = self.arm.set_servo_angle(angle=[111.6, 47.6, -46.5, 111.5, 90.8, -180.8], speed=10, is_radian=False, wait=True)
                 code = self.arm.set_servo_angle(angle=[129.7, 48.4, -51.1, 129.7, 88.7, -177.8], speed=10, is_radian=False, wait=True)
                 code = self.arm.set_servo_angle(angle=[132.5, 49.1, -53.6, 132.5, 87.4, -176.6], speed=5,  is_radian=False, wait=True)
 
             elif slot_val == 2:
-
+                code = self.arm.set_servo_angle(angle=[111.6, 47.6, -46.5, 111.5, 90.8, -180.8], speed=10, is_radian=False, wait=True)
                 code = self.arm.set_servo_angle(angle=[126.9, 49.8, -55.7, 126.8, 86.9, -175.1], speed=10, is_radian=False, wait=True)
                 code = self.arm.set_servo_angle(angle=[129.7, 50.6, -58.3, 129.5, 85.5, -173.9], speed=5,  is_radian=False, wait=True)
 
