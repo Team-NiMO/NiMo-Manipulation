@@ -116,7 +116,8 @@
   <!-- Janice's gripper parameters -->
   <!-- <node pkg="tf" type="static_transform_publisher" name="camera_link" args="-0.027381 0.026018 0.14910 -0.0942465 -1.5720387 1.593787 /link_eef /camera_link 100"/>   -->
   <node pkg="tf" type="static_transform_publisher" name="camera_link" args="0 0.022 0.056 0 -1.5708 1.5708 /link_eef /camera_link 100"/>  
-  <node pkg="tf" type="static_transform_publisher" name="gripper" args="0 0.07938 0.1756 0 0 0 /link_eef /gripper 100"/>
+  <node pkg="tf" type="static_transform_publisher" name="gripper" args="0 0.07938 0.185 0 0 0 /link_eef /gripper 100"/>
+  <!-- <node pkg="tf" type="static_transform_publisher" name="gripper" args="0 0.07938 0.1756 0 0 0 /link_eef /gripper 100"/> -->
   <!-- <node pkg="tf" type="static_transform_publisher" name="gripper" args="0 0.07938 0.1906 0 0 0 /link_eef /gripper 100"/> -->
   <!-- <node pkg="tf" type="static_transform_publisher" name="gripper" args="-0.1  0.07938 0.25 0 0 0 /link_eef /gripper 100"/> -->
 

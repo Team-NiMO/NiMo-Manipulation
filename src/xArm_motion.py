@@ -113,7 +113,8 @@ class xArm_Motion():
             init_move_x = -95.3
             precise_move_x = -35
             move_back = -(init_move_x+precise_move_x)
-            code = self.arm.set_position_aa(axis_angle_pose=[move_back, 0, 0, 0, 0, 0], speed=5, relative=True, wait=True)
+            code = self.arm.set_position_aa(axis_angle_pose=[move_back/2, 0, 0, 0, 0, 0], speed=5, relative=True, wait=True)
+            code = self.arm.set_position_aa(axis_angle_pose=[move_back/2, 0, 0, 0, 0, 0], speed=50, relative=True, wait=True)
                 
         
         if self.verbose: rospy.loginfo('Going to Stow Position')
@@ -282,15 +283,15 @@ class xArm_Motion():
 
             if self.state == "cal_high":
                 # move to the cal_low nozzle before moving to the clean nozzle
-                code = self.arm.set_servo_angle(angle=[-126.8, 40.8, -48.4, -127.1, 91, 14], is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[-125.6, 40.7, -48, -125.9, 91.3, 14.1], is_radian=False, wait=True)
 
-            code = self.arm.set_servo_angle(angle=[-137.8, 36.8, -35.4, -137.7, 96.6, 20.9], is_radian=False, wait=True)
+            code = self.arm.set_servo_angle(angle=[-137.5, 36.9, -35.7, -137.4, 96.4, 20.8], is_radian=False, wait=True)
 
         elif req.id == "cal_low":
             if self.verbose: rospy.loginfo("Going to Low Calibration Nozzle")
 
             # Joint angles corresponding to end-effector at the low calibration nozzle
-            code = self.arm.set_servo_angle(angle=[-126.8, 40.8, -48.4, -127.1, 91, 14], is_radian=False, wait=True)
+            code = self.arm.set_servo_angle(angle=[-125.6, 40.7, -48, -125.9, 91.3, 14.1], is_radian=False, wait=True)
 
 
         elif req.id == "cal_high":
@@ -298,11 +299,10 @@ class xArm_Motion():
 
             if self.state == "clean":
                 # move to the cal_low nozzle before moving to the cal_high nozzle
-                # code = self.arm.set_servo_angle(angle=[-125.2, 40.3, -46.9, -125.5, 91.7, 14.6], is_radian=False, wait=True)
-                code = self.arm.set_servo_angle(angle=[-126.8, 40.8, -48.4, -127.1, 91, 14], is_radian=False, wait=True)
-            
+                code = self.arm.set_servo_angle(angle=[-125.6, 40.7, -48, -125.9, 91.3, 14.1], is_radian=False, wait=True)
+
             # Joint angles corresponding to end-effector at the high calibration nozzle
-            code = self.arm.set_servo_angle(angle=[-119.7, 47.6, -64.9, -119.8, 86.7, 4.9], is_radian=False, wait=True)
+            code = self.arm.set_servo_angle(angle=[-118.6, 47.5, -64.7, -118.8, 87, 4.8], is_radian=False, wait=True)
 
 
         if code != 0:
@@ -449,27 +449,23 @@ class xArm_Motion():
 
             if slot_val == 1:
                 code = self.arm.set_servo_angle(angle=[111.6, 47.6, -46.5, 111.5, 90.8, -180.8], speed=10, is_radian=False, wait=True)
-                code = self.arm.set_servo_angle(angle=[129.7, 48.4, -51.1, 129.7, 88.7, -177.8], speed=10, is_radian=False, wait=True)
-                code = self.arm.set_servo_angle(angle=[132.5, 49.1, -53.6, 132.5, 87.4, -176.6], speed=5,  is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[129.7, 48.6, -51, 129.6, 88.9, -177.9], speed=10, is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[132.4, 49.3, -53.5, 132.3, 87.6, -176.7], speed=5,  is_radian=False, wait=True)
 
             elif slot_val == 2:
                 code = self.arm.set_servo_angle(angle=[111.6, 47.6, -46.5, 111.5, 90.8, -180.8], speed=10, is_radian=False, wait=True)
-                code = self.arm.set_servo_angle(angle=[126.9, 49.8, -55.7, 126.8, 86.9, -175.1], speed=10, is_radian=False, wait=True)
-                code = self.arm.set_servo_angle(angle=[129.7, 50.6, -58.3, 129.5, 85.5, -173.9], speed=5,  is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[127, 50.1, -55.7, 126.8, 87, -175.3], speed=10, is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[129.7, 50.9, -58.2, 129.4, 85.7, -174.1], speed=5,  is_radian=False, wait=True)
 
             elif slot_val == 3:
-
-                code = self.arm.set_servo_angle(angle=[124.5, 51.7, -60.8, 124.3, 85.3, -172.3], speed=10, is_radian=False, wait=True)
-                code = self.arm.set_servo_angle(angle=[127.3, 52.6, -63.5, 126.9, 83.9, -171.2], speed=5,  is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[124.6, 51.9, -60.6, 124.4, 85.5, -172.6], speed=10, is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[127.3, 52.8, -63.2, 127, 84.1, -171.5], speed=5,  is_radian=False, wait=True)
             elif slot_val == 4:
-
-                code = self.arm.set_servo_angle(angle=[122.4, 53.7, -66.3, 122, 83.7, -169.2], speed=10, is_radian=False, wait=True)
-                code = self.arm.set_servo_angle(angle=[124.8, 54.7, -68.7, 124.2, 82.5, -168.2], speed=5,  is_radian=False, wait=True)
-            
+                code = self.arm.set_servo_angle(angle=[122.7, 53.8, -66, 122.2, 83.9, -169.5], speed=10, is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[125, 54.7, -68.3, 124.4, 82.7, -168.6], speed=5,  is_radian=False, wait=True)
             elif slot_val == 5:
-
-                code = self.arm.set_servo_angle(angle=[120.5, 56.2, -72.1, 119.8, 82.4, -166], speed=10, is_radian=False, wait=True)
-                code = self.arm.set_servo_angle(angle=[123.1, 57.2, -74.7, 122, 81, -165.1], speed=5,  is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[120.2, 56.2, -71.5, 119.4, 82.8, -166.6], speed=10, is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[123.1, 57.4, -74.5, 122, 81.2, -165.5], speed=5,  is_radian=False, wait=True)
 
             self.state = "RM"
         
