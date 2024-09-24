@@ -56,10 +56,12 @@ add_service_files(
   GoCorn.srv
   GoEM.srv
   GoHome.srv
+  GoStow.srv
   LookatCorn.srv
   UngoCorn.srv
   HookCorn.srv
   UnhookCorn.srv
+  LookatAngle.srv
 )
 
 ## Generate actions in the 'action' folder
