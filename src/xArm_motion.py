@@ -9,6 +9,8 @@ from xarm.wrapper import XArmAPI
 from geometry_msgs.msg import Point, TransformStamped
 from sensor_msgs.msg import JointState
 from nimo_manipulation.srv import *
+import moveit_msgs
+import moveit_commander
 
 class xArm_Motion():
     @classmethod
@@ -50,10 +52,47 @@ class xArm_Motion():
 
         self.broadcaster = tf2_ros.StaticTransformBroadcaster()
 
+        self.scene = moveit_commander.PlanningSceneInterface()
+        self.robot = moveit_commander.RobotCommander()
+        self.group_name = "xarm6"
+        self.move_group = moveit_commander.MoveGroupCommander(self.group_name)
+
+        self.pose_goal = geometry_msgs.msg.Pose()
+        self.pose_goal.orientation = self.robot.get_link('link_eef').pose().pose.orientation 
+
+        self.setupVirtualWalls()
+
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
         tf2_ros.TransformListener(tfBuffer)
+        self.state = "HOME"
 
         if self.verbose: rospy.loginfo('Waiting for service calls...')        
+    
+    @classmethod
+    def setupVirtualWalls(self):
+        '''
+        Setup Virtual Walls
+        '''
+        self.scene.remove_world_object()
+
+        p = geometry_msgs.msg.PoseStamped()
+        p.header.frame_id = self.robot.get_planning_frame()
+        p.pose.position.x = 0.
+        p.pose.position.y = 0.
+        p.pose.position.z = 0.91
+        self.scene.add_plane("ground", p)
+
+        p = geometry_msgs.msg.PoseStamped()
+        p.header.frame_id = self.robot.get_planning_frame()
+        p.pose.position.x = -0.38
+        p.pose.position.y = 0.
+        p.pose.position.z = 0.
+        p.pose.orientation.x = 0
+        p.pose.orientation.y = -np.sqrt(2) / 2.0
+        p.pose.orientation.z = 0
+        p.pose.orientation.w = np.sqrt(2) / 2.0
+        self.scene.add_plane("table", p)
+        
 
     @classmethod
     def loadConfig(self):
@@ -300,23 +339,23 @@ class xArm_Motion():
         
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
 
-        if req.grasp_point.x < 0.2:
-            # include pre grasp pose
-            # code = self.arm.set_servo_angle(angle=[-90, -90, 0, -90, 0, 0], is_radian=False, wait=True)
+        # if req.grasp_point.x < 0.2:
+        #     # include pre grasp pose
+        #     # code = self.arm.set_servo_angle(angle=[-90, -90, 0, -90, 0, 0], is_radian=False, wait=True)
 
-            code = self.arm.set_servo_angle(angle=[0, -90, 0, -90, 90, 0], speed=30, is_radian=False, wait=True)
+        #     code = self.arm.set_servo_angle(angle=[0, -90, 0, -90, 90, 0], speed=30, is_radian=False, wait=True)
 
-            if code != 0:
-                rospy.logerr("set_arm_position_aa returned error {}".format(code))
-                return GoCornResponse(success="ERROR")
+        #     if code != 0:
+        #         rospy.logerr("set_arm_position_aa returned error {}".format(code))
+        #         return GoCornResponse(success="ERROR")
 
-            code = self.arm.set_position_aa(axis_angle_pose=[0, -5, 120, 0, 0, 0], speed=30, relative=True, wait=True)
-            #120mm in z from home position
-            # code = self.arm.set_servo_angle(angle=[-79.4, -81.1, -15.2, -59.5, 12.4, -31.1], is_radian=False, wait=True)
+        #     code = self.arm.set_position_aa(axis_angle_pose=[0, -5, 120, 0, 0, 0], speed=30, relative=True, wait=True)
+        #     #120mm in z from home position
+        #     # code = self.arm.set_servo_angle(angle=[-79.4, -81.1, -15.2, -59.5, 12.4, -31.1], is_radian=False, wait=True)
 
-            if code != 0:
-                rospy.logerr("set_arm_position_aa returned error {}".format(code))
-                return GoCornResponse(success="ERROR")
+        #     if code != 0:
+        #         rospy.logerr("set_arm_position_aa returned error {}".format(code))
+        #         return GoCornResponse(success="ERROR")
             
         # sys.exit()
         
@@ -326,14 +365,26 @@ class xArm_Motion():
         # del_x, del_y, del_z = -delta.x * 1000, (-delta.y + 0.15) * 1000, -delta.z * 1000 
         del_x, del_y, del_z = -delta.x * 1000 + 27, (-delta.y + 0.1) * 1000, -delta.z * 1000 
 
+        self.pose_goal.position.x = req.grasp_point.x
+        self.pose_goal.position.y = req.grasp_point.y
+        self.pose_goal.position.z = req.grasp_point.z
+        self.move_group.set_pose_target(self.pose_goal)
+
+        success = self.move_group.go(wait=True)
+        self.move_group.stop()
+        self.move_group.clear_pose_targets()
+
         # Update relative movement with offset
-        self.del_x, self.del_y, self.del_z = del_x, del_y, del_z
+        # self.del_x, self.del_y, self.del_z = del_x, del_y, del_z
 
-        code = self.arm.set_position_aa(axis_angle_pose=[del_x, del_y, del_z, 0, 0, 0], speed=30, relative=True, wait=True)
-
-        if code != 0:
-            rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return GoCornResponse(success="ERROR")
+        # code = self.arm.set_position_aa(axis_angle_pose=[del_x, del_y, del_z, 0, 0, 0], speed=30, relative=True, wait=True)
+        
+        '''
+        Figure out error handling
+        '''
+        # if code != 0:
+        #     rospy.logerr("set_arm_position_aa returned error {}".format(code))
+        #     return GoCornResponse(success="ERROR")
 
         self.state = "CORN_OFFSET"
         return GoCornResponse(success="DONE")
