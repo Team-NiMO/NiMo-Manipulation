@@ -60,7 +60,7 @@ class xArm_Motion():
         self.pose_goal = geometry_msgs.msg.Pose()
         self.pose_goal.orientation = self.robot.get_link('link_eef').pose().pose.orientation 
 
-        self.setupVirtualWalls()
+        self.setupCollisions()
 
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
         tf2_ros.TransformListener(tfBuffer)
@@ -69,30 +69,74 @@ class xArm_Motion():
         if self.verbose: rospy.loginfo('Waiting for service calls...')        
     
     @classmethod
-    def setupVirtualWalls(self):
+    def setupCollisions(self):
         '''
-        Setup Virtual Walls
+        Setup collision boxes and planes for environment and end effector
         '''
-        self.scene.remove_world_object()
 
+        # Clear the scene of previous objects
+        self.scene.remove_world_object()
+        frame = self.robot.get_planning_frame()
+
+        # # Setup end effector box
+        # p = geometry_msgs.msg.PoseStamped()
+        # p.header.frame_id = "link_eef"
+        # p.pose.position.z = 0.11 # EE DIMENSIONS?
+        # self.scene.add_box('end_effector', p, size=(0.075, 0.075, 0.075)) # EE DIMENSIONS
+
+        # ---------- For Tabletop Setup ----------
+        # Setup ground plane
         p = geometry_msgs.msg.PoseStamped()
-        p.header.frame_id = self.robot.get_planning_frame()
-        p.pose.position.x = 0.
-        p.pose.position.y = 0.
+        p.header.frame_id = frame
         p.pose.position.z = 0.91
         self.scene.add_plane("ground", p)
 
+        # Setup table plane
         p = geometry_msgs.msg.PoseStamped()
-        p.header.frame_id = self.robot.get_planning_frame()
+        p.header.frame_id = frame
         p.pose.position.x = -0.38
-        p.pose.position.y = 0.
-        p.pose.position.z = 0.
-        p.pose.orientation.x = 0
         p.pose.orientation.y = -np.sqrt(2) / 2.0
-        p.pose.orientation.z = 0
         p.pose.orientation.w = np.sqrt(2) / 2.0
         self.scene.add_plane("table", p)
-        
+
+        # ---------- For Amiga Setup ----------
+        # # Setup ground plane
+        # p = geometry_msgs.msg.PoseStamped()
+        # p.header.frame_id = self.robot.get_planning_frame()
+        # p.pose.position.z = ...
+        # self.scene.add_plane("ground", p)
+
+        # # Setup driver's wheel box
+        # p = geometry_msgs.msg.PoseStamped()
+        # p.header.frame_id = frame
+        # p.pose.position.x = ...
+        # p.pose.position.y = ...
+        # p.pose.position.z = ...
+        # self.scene.add_box('end_effector', p, size=(..., ..., ...)) # WHEEL DIMENSIONS
+
+        # # Setup passenger's wheel box
+        # p = geometry_msgs.msg.PoseStamped()
+        # p.header.frame_id = frame
+        # p.pose.position.x = ...
+        # p.pose.position.y = ...
+        # p.pose.position.z = ...
+        # self.scene.add_box('end_effector', p, size=(..., ..., ...)) # WHEEL DIMENSIONS
+
+        # # Setup parallel frame box (frame holding external mechanisms)
+        # p = geometry_msgs.msg.PoseStamped()
+        # p.header.frame_id = frame
+        # p.pose.position.x = ...
+        # p.pose.position.y = ...
+        # p.pose.position.z = ...
+        # self.scene.add_box('end_effector', p, size=(..., ..., ...)) # FRAME DIMENSIONS
+
+        # # Setup perpendicular frame box (frame holding xArm6)
+        # p = geometry_msgs.msg.PoseStamped()
+        # p.header.frame_id = frame
+        # p.pose.position.x = ...
+        # p.pose.position.y = ...
+        # p.pose.position.z = ...
+        # self.scene.add_box('end_effector', p, size=(..., ..., ...)) # FRAME DIMENSIONS
 
     @classmethod
     def loadConfig(self):
@@ -371,6 +415,7 @@ class xArm_Motion():
         self.move_group.set_pose_target(self.pose_goal)
 
         success = self.move_group.go(wait=True)
+        print("sucess: ", success)
         self.move_group.stop()
         self.move_group.clear_pose_targets()
 
