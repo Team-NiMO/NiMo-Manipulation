@@ -24,15 +24,17 @@ class xArm_Motion():
         except rospy.ROSException:
             rospy.logwarn('Unable to connect to xArm')
 
+        ''' TODO: Remove xArm API calls
         # Initialize xArm
-        self.arm = XArmAPI(self.ip_address)
-        self.arm.motion_enable(enable=True)
-        self.arm.set_mode(0)
-        self.arm.set_state(state=0)
+        # self.arm = XArmAPI(self.ip_address)
+        # self.arm.motion_enable(enable=True)
+        # self.arm.set_mode(0)
+        # self.arm.set_state(state=0)
 
         # Set self collision for the xArm
         self.arm.set_self_collision_detection(on_off=True)
         self.arm.set_collision_tool_model(22, x=226.06, y=76.2, z=195.58)
+        '''
 
         # Setup services
         self.get_xArm_service = rospy.Service('GoHome', GoHome, self.GoHome)
@@ -52,6 +54,7 @@ class xArm_Motion():
 
         self.broadcaster = tf2_ros.StaticTransformBroadcaster()
 
+        # Setup for MoveIt commands
         self.scene = moveit_commander.PlanningSceneInterface()
         self.robot = moveit_commander.RobotCommander()
         self.group_name = "xarm6"
@@ -64,7 +67,6 @@ class xArm_Motion():
 
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
         tf2_ros.TransformListener(tfBuffer)
-        self.state = "HOME"
 
         if self.verbose: rospy.loginfo('Waiting for service calls...')        
     
@@ -169,12 +171,28 @@ class xArm_Motion():
         
         if self.verbose: rospy.loginfo('Going to Stow Position')
 
+        joint_goal = self.move_group.get_current_joint_values()
+        joint_goal = np.deg2rad([0, -100, 5, 0, 5, -90])
+
+        self.move_group.set_joint_value_target(joint_goal)
+        success = self.move_group.go(joint_goal, wait=True)
+
+        self.move_group.stop()
+        self.move_group.clear_pose_targets()
+
+        ''' TODO: figure out how we want to do error handling
+        if success != True:
+            rospy.logerr("set_joint_value_target returned error {}".format(success))
+        '''
+        
+        ''' TODO: Remove xArm API calls
         # Joint angles corresponding to end-effector facing forward
         code = self.arm.set_servo_angle(angle=[0, -100, 5, 0, 5, -90], speed=30, is_radian=False, wait=True)
 
         if code != 0:
             rospy.logerr("set_servo_angle returned error {}".format(code))
             return GoStowResponse(success="ERROR")
+        '''
 
         self.state = "STOW"
 
@@ -193,19 +211,38 @@ class xArm_Motion():
         if self.state == "CORN_HOOK" or self.state == "CORN_OFFSET":
             rospy.logerr("Invalid Command: Cannot move from {} to {} via GoHome".format(self.state, "HOME"))
             return GoHomeResponse(success="ERROR")
+        
+        ''' TODO: Do we still need this?
         elif self.state in ["clean", "cal_low", "cal_high"]:
             self.GoEMPlane()
         elif self.state == "LookatCorn":
             self.arm.set_position_aa(axis_angle_pose=[0, -221.5, 0, 6.6, 0, 0], speed=30, relative=True, wait=True)
+        '''
 
         if self.verbose: rospy.loginfo('Going to Home Position')
 
+        joint_goal = self.move_group.get_current_joint_values()
+        joint_goal = np.deg2rad([0, -90, 0, -90, 90, 0])
+
+        self.move_group.set_joint_value_target(joint_goal)
+        success = self.move_group.go(joint_goal, wait=True)
+
+        self.move_group.stop()
+        self.move_group.clear_pose_targets()
+
+        ''' TODO: figure out how we want to do error handling
+        if success != True:
+            rospy.logerr("set_joint_value_target returned error {}".format(success))
+        '''
+
+        '''  TODO: Remove xArm API calls
         # Joint angles corresponding to end-effector facing the left side of the amiga base
         code = self.arm.set_servo_angle(angle=[0, -90, 0, -90, 90, 0], speed=30, is_radian=False, wait=True)
 
         if code != 0:
             rospy.logerr("set_servo_angle returned error {}".format(code))
             return GoHomeResponse(success="ERROR")
+        '''
 
         self.state = "HOME"
 
@@ -224,19 +261,45 @@ class xArm_Motion():
         if self.state != "HOME":
             rospy.logerr("Invalid Command: Cannot move from {} to LookatCorn".format(self.state))
             return LookatCornResponse(success="ERROR")
+        
+        ''' TODO: Check - Do we still need this?
         elif self.state in ["clean", "cal_low", "cal_high"]:
             self.GoEMPlane()
+        '''            
 
         if self.verbose: rospy.loginfo('Going to LookatCorn Position')
 
-        # Joint angles corresponding to end-effector facing the left side of the amiga base
-        # code = self.arm.set_servo_angle(angle=[0, -90, 0, -115, 90, 0], is_radian=False, wait=True)
-        code = self.arm.set_servo_angle(angle=[-90, -103.1, -36.9, 0, 50, -90], speed=30, is_radian=False, wait=True)
-        self.arm.set_position_aa(axis_angle_pose=[0, 221.5, 0, -6.6, 0, 0], speed=30, relative=True, wait=True)
+        joint_goal = self.move_group.get_current_joint_values()
+        joint_goal = np.deg2rad([-90, -103.1, -36.9, 0, 50, -90])
 
-        if code != 0:
-            rospy.logerr("set_servo_angle returned error {}".format(code))
-            return LookatCornResponse(success="ERROR")
+        self.move_group.set_joint_value_target(joint_goal)
+        success = self.move_group.go(joint_goal, wait=True)
+
+        # self.move_group.stop()
+        self.move_group.clear_pose_targets()
+
+        print("DONE WITH FIRST POSITION")
+
+        # pose_goal = geometry_msgs.msg.Pose()
+        self.pose_goal.position.x = 0.0
+        self.pose_goal.position.y = 221.5
+        self.pose_goal.position.z = 0.0
+        self.pose_goal.orientation = -6.6
+        self.move_group.set_pose_target(self.pose_goal)
+
+        success = self.move_group.go(self.pose_goal, wait=True)
+        self.move_group.stop()
+        self.move_group.clear_pose_targets()
+
+        '''  TODO: Remove xArm API calls
+        # Joint angles corresponding to end-effector facing the left side of the amiga base
+        # code = self.arm.set_servo_angle(angle=[-90, -103.1, -36.9, 0, 50, -90], speed=30, is_radian=False, wait=True)
+        # self.arm.set_position_aa(axis_angle_pose=[0, 221.5, 0, -6.6, 0, 0], speed=30, relative=True, wait=True)
+
+        # if code != 0:
+        #     rospy.logerr("set_servo_angle returned error {}".format(code))
+        #     return LookatCornResponse(success="ERROR")
+        '''
 
         self.state = "LookatCorn"
 
