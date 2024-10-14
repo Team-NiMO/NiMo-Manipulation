@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
-import numpy as np
-import rospy
 import copy
-import time
 import yaml
+import rospy
+import numpy as np
+
 import rospkg
 import tf2_ros
-from xarm.wrapper import XArmAPI
-from geometry_msgs.msg import Point, TransformStamped
-from sensor_msgs.msg import JointState
-from nimo_manipulation.srv import *
-# RobotState, Constraints, OrientationConstraint
-import moveit_commander
 import tf_conversions
+import moveit_commander
+from sensor_msgs.msg import JointState
+
+from nimo_manipulation.srv import *
+
+'''
+TODO:
+- Error handling for all movements
+'''
 
 class xArm_Motion():
     @classmethod
@@ -33,7 +36,6 @@ class xArm_Motion():
         self.get_xArm_service = rospy.Service('LookatAngle', LookatAngle, self.LookatAngle)
         self.get_xArm_service = rospy.Service('GoEM', GoEM, self.GoEM)
         self.get_xArm_service = rospy.Service('GoCorn', GoCorn, self.GoCorn)
-        # self.get_xArm_service = rospy.Service('UngoCorn', UngoCorn, self.UngoCorn)
         self.get_xArm_service = rospy.Service('ArcCorn', ArcCorn, self.ArcCorn)
         self.get_xArm_service = rospy.Service('HookCorn', HookCorn, self.HookCorn)
         self.get_xArm_service = rospy.Service('UnhookCorn', UnhookCorn, self.UnhookCorn)
@@ -44,6 +46,8 @@ class xArm_Motion():
         self.absolute_angle = 0 
 
         self.broadcaster = tf2_ros.StaticTransformBroadcaster()
+        tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
+        tf2_ros.TransformListener(tfBuffer)
 
         # Setup for MoveIt commands
         self.scene = moveit_commander.PlanningSceneInterface()
@@ -51,14 +55,11 @@ class xArm_Motion():
         self.group_name = "xarm6"
         self.move_group = moveit_commander.MoveGroupCommander(self.group_name)
 
+        # NOTE: Does pose_goal need to be a class variable?
         self.pose_goal = geometry_msgs.msg.Pose()
-        # self.pose_goal = self.move_group.get_current_pose().pose
         self.pose_goal.orientation = self.robot.get_link('link_eef').pose().pose.orientation 
 
         self.setupCollisions()
-
-        tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
-        tf2_ros.TransformListener(tfBuffer)
 
         if self.verbose: rospy.loginfo('Waiting for service calls...')        
     
@@ -72,26 +73,47 @@ class xArm_Motion():
         self.scene.remove_world_object()
         frame = self.robot.get_planning_frame()
 
-        # # Setup end effector box
-        # p = geometry_msgs.msg.PoseStamped()
-        # p.header.frame_id = "link_eef"
-        # p.pose.position.z = 0.11 # EE DIMENSIONS?
-        # self.scene.add_box('end_effector', p, size=(0.075, 0.075, 0.075)) # EE DIMENSIONS
+        # Setup end effector box
+        if self.gripper_collision:
+            p = geometry_msgs.msg.PoseStamped()
+            p.header.frame_id = "link_eef"
+            p.pose.position.z = 0.033 / 2
+            self.scene.add_box('ee_grip1', p, size=(0.076, 0.076, 0.033))
 
-        # ---------- For Tabletop Setup ----------
-        # Setup ground plane
-        p = geometry_msgs.msg.PoseStamped()
-        p.header.frame_id = frame
-        p.pose.position.z = 0.91
-        self.scene.add_plane("ground", p)
+            p.header.frame_id = "link_eef"
+            p.pose.position.z = 0.033 + 0.0752 / 2
+            p.pose.position.y = (0.076 - 0.021) / 2
+            self.scene.add_box('ee_grip2', p, size=(0.076, 0.021, 0.0752))
 
-        # Setup table plane
-        p = geometry_msgs.msg.PoseStamped()
-        p.header.frame_id = frame
-        p.pose.position.x = -0.38
-        p.pose.orientation.y = -np.sqrt(2) / 2.0
-        p.pose.orientation.w = np.sqrt(2) / 2.0
-        self.scene.add_plane("table", p)
+            p.header.frame_id = "link_eef"
+            p.pose.position.z = 0.146 / 2 + 0.018
+            p.pose.position.y = (0.076 + 0.102) / 2
+            self.scene.add_box('ee_box', p, size=(0.076, 0.102, 0.146))
+
+            p.header.frame_id = "link_eef"
+            p.pose.position.z = 0.065 / 2 + 0.146 + 0.018
+            p.pose.position.y = 0.076 / 2 + 0.102 - 0.041 / 2
+            self.scene.add_box('ee_hook1', p, size=(0.076, 0.041, 0.065))
+
+        if self.base_collision == "tabletop":
+            # Setup ground plane
+            p = geometry_msgs.msg.PoseStamped()
+            p.header.frame_id = frame
+            p.pose.position.z = 0.91
+            self.scene.add_plane("ground", p)
+
+            # Setup table plane
+            p = geometry_msgs.msg.PoseStamped()
+            p.header.frame_id = frame
+            p.pose.position.x = -0.38
+            p.pose.orientation.y = -np.sqrt(2) / 2.0
+            p.pose.orientation.w = np.sqrt(2) / 2.0
+            self.scene.add_plane("table", p)
+
+        elif self.base_collision == "none":
+            pass
+        else:
+            raise NotImplementedError
 
         # ---------- For Amiga Setup ----------
         # # Setup ground plane
@@ -147,6 +169,8 @@ class xArm_Motion():
         self.verbose = config["debug"]["verbose"]
         self.approach = config["gripper"]["approach"]
         self.ip_address = config["arm"]["ip_address"]
+        self.gripper_collision = config["collision"]["gripper"]
+        self.base_collision = config["collision"]["base"]
 
     @classmethod 
     def GoStow(self, req: GoStowRequest) -> GoStowResponse:
@@ -177,7 +201,7 @@ class xArm_Motion():
         self.move_group.clear_pose_targets()
 
         if not success:
-            print("GoStow failed. Unable to reach the goal.") 
+            rospy.logerr("GoStow failed. Unable to reach the goal.") 
 
         self.state = "STOW"
 
@@ -213,7 +237,7 @@ class xArm_Motion():
         self.move_group.clear_pose_targets()
 
         if not success:
-            print("GoHome failed. Unable to reach the goal.") 
+            rospy.logerr("GoHome failed. Unable to reach the goal.") 
 
 
         self.state = "HOME"
@@ -271,13 +295,16 @@ class xArm_Motion():
         
         # Adjust Joint-5 relative to LookatCorn: left (angle > 90°), right (angle < 90°).
         joint_goal = self.move_group.get_current_joint_values()
-        joint_goal = np.deg2rad([0, -90, 0, -115, 90-req.joint_angle, 0])
+        joint_goal = np.deg2rad([-90, -112.1, -64.5, 0-req.joint_angle, 80, -90])
 
         self.move_group.set_joint_value_target(joint_goal)
         success = self.move_group.go(joint_goal, wait=True)
 
         self.move_group.stop()
         self.move_group.clear_pose_targets()
+
+        if not success:
+            rospy.logerr("LookatAngle failed. Unable to reach the goal.") 
 
         self.state = "LookatAngle"
 
@@ -336,6 +363,12 @@ class xArm_Motion():
             if self.state == "cal_high":
                 # move to the cal_low nozzle before moving to the clean nozzle
                 joint_goal = np.deg2rad([-115.3, 89.1, -96, 64.4, -87.6, -102.1])
+                self.move_group.set_joint_value_target(joint_goal)
+                success = self.move_group.go(joint_goal, wait=True)
+                self.move_group.stop()
+                self.move_group.clear_pose_targets()
+                if not success:
+                    rospy.logerr("GoEm {req.id} failed. Unable to reach the goal.")
 
             # Joint angles corresponding to end-effector at the cleaning nozzle
             joint_goal = np.deg2rad([-125.1, 85, -74.8, 55.2, -96.5, -87.3])
@@ -352,15 +385,23 @@ class xArm_Motion():
             if self.state == "clean":
                 # move to the cal_low nozzle before moving to the cal_high nozzle
                 joint_goal = np.deg2rad([-115.3, 89.1, -96, 64.4, -87.6, -102.1])
+                self.move_group.set_joint_value_target(joint_goal)
+                success = self.move_group.go(joint_goal, wait=True)
+                self.move_group.stop()
+                self.move_group.clear_pose_targets()
+                if not success:
+                    rospy.logerr("GoEm {req.id} failed. Unable to reach the goal.")
             
             # Joint angles corresponding to end-effector at the high calibration nozzle
             joint_goal = np.deg2rad([-108.7, 110.3, -149.4, 73, -76.8, -129.8])
 
         self.move_group.set_joint_value_target(joint_goal)
         success = self.move_group.go(joint_goal, wait=True)
-
         self.move_group.stop()
         self.move_group.clear_pose_targets()
+
+        if not success:
+            rospy.logerr("GoEm {req.id} failed. Unable to reach the goal.")
         
         self.state = req.id
         return GoEMResponse(success="DONE")
@@ -379,7 +420,7 @@ class xArm_Motion():
                           - success - The success of the operation (DONE / ERROR)
         '''
 
-        if self.state != "HOME":
+        if self.state != "HOME" and self.state != "CORN_OFFSET":
             rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_OFFSET"))
             return GoCornResponse(success="ERROR")
 
@@ -398,6 +439,9 @@ class xArm_Motion():
         success = self.move_group.go(self.pose_goal, wait=True)
         self.move_group.stop()
         self.move_group.clear_pose_targets()
+
+        if not success:
+            rospy.logerr("GoCorn failed. Unable to reach the goal.")
 
         self.state = "CORN_OFFSET"
         return GoCornResponse(success="DONE")
@@ -435,7 +479,9 @@ class xArm_Motion():
             waypoints.append(copy.deepcopy(pose_goal))
 
         plan, _ = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
-        self.move_group.execute(plan, wait=True)
+        success = self.move_group.execute(plan, wait=True)
+        if not success:
+            rospy.logerr("GoCorn failed. Unable to reach the goal.")
 
         waypoints = []
         for pos in np.arange(-pos_res, -0.12, -pos_res):
@@ -445,7 +491,9 @@ class xArm_Motion():
             waypoints.append(copy.deepcopy(pose_goal))
         
         plan, _ = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
-        self.move_group.execute(plan, wait=True)
+        success = self.move_group.execute(plan, wait=True)
+        if not success:
+            rospy.logerr("GoCorn failed. Unable to reach the goal.")
 
         waypoints = []
         for pos in np.arange(pos_res, 0.085, pos_res):
@@ -455,7 +503,9 @@ class xArm_Motion():
             waypoints.append(copy.deepcopy(pose_goal))
 
         plan, _ = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
-        self.move_group.execute(plan, wait=True)
+        success = self.move_group.execute(plan, wait=True)
+        if not success:
+            rospy.logerr("GoCorn failed. Unable to reach the goal.")
 
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
         tf2_ros.TransformListener(tfBuffer)
@@ -496,7 +546,7 @@ class xArm_Motion():
 
             waypoints.append(pose_goal)
 
-        plan, _ = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        plan, f = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
         self.move_group.execute(plan, wait=True)
 
         pose = self.move_group.get_current_pose().pose

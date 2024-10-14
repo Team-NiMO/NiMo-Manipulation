@@ -5,4 +5,8 @@ arm:
   ip_address: '192.168.1.214' # The IP address of the controlbox for the xArm
 
 gripper:
-  approach: left             # [NOTE] Options: left, front
+  approach: left             # Options: left, front
+
+collision:
+  gripper: False              # Whether the gripper has a collision box
+  base: tabletop             # Options: tabletop, amiga, none
