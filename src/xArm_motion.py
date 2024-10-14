@@ -9,6 +9,7 @@ from xarm.wrapper import XArmAPI
 from geometry_msgs.msg import Point, TransformStamped
 from sensor_msgs.msg import JointState
 from nimo_manipulation.srv import *
+# RobotState, Constraints, OrientationConstraint
 import moveit_msgs
 import moveit_commander
 import tf_conversions
@@ -50,7 +51,7 @@ class xArm_Motion():
         self.get_xArm_service = rospy.Service('UnhookCorn', UnhookCorn, self.UnhookCorn)
 
         # Internal variables
-        self.state = "STOW" # TODO: This may not be true on startup
+        self.state = "HOME" # TODO: This may not be true on startup
         self.absolute_angle = 0 # angle at which the xarm is facing the cornstalk
 
         self.broadcaster = tf2_ros.StaticTransformBroadcaster()
@@ -214,7 +215,7 @@ class xArm_Motion():
                            - success - The success of the operation (DONE / ERROR)
         '''
 
-        if self.state == "CORN_HOOK" or self.state == "CORN_OFFSET":
+        if self.state == "CORN_HOOK" '''or self.state == "CORN_OFFSET"''':
             rospy.logerr("Invalid Command: Cannot move from {} to {} via GoHome".format(self.state, "HOME"))
             return GoHomeResponse(success="ERROR")
         
@@ -694,21 +695,131 @@ class xArm_Motion():
         self.state = "HOME"
         return UnhookCornResponse(success="DONE")
 
+    # @classmethod
+    # def ArcCorn(self, req: ArcCornRequest) -> ArcCornResponse:
+    #     '''
+    #     Arc around the cornstalk by the specified angle
+
+    #     Parameters:
+    #         req (ArcCornRequest): The request:
+    #                               - relative_angle - The relative angle to rotate about the cornstalk (deg)
+        
+    #     Returns:
+    #         ArcCornResponse: The response:
+    #                           - absolute_angle - The absolute angle of the current position
+    #                           - success - The success of the operation (DONE / ERROR)
+    #     '''
+
+    #     if self.state != "CORN_OFFSET" and self.state!="CORN_HOOK":
+    #         rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_OFFSET"))
+    #         return ArcCornResponse(success="ERROR")
+
+    #     if self.verbose: rospy.loginfo("Performing the arc motion")
+        
+    #     tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
+    #     tf2_ros.TransformListener(tfBuffer)
+
+    #     # Get the current gripper position
+    #     trans = tfBuffer.lookup_transform('link_base', 'link_eef', rospy.Time(), rospy.Duration(3.0)).transform.translation
+    #     radius = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
+    #     x_curr, y_curr = trans.x, trans.y
+
+    #     c_x = x_curr - (0.1 + radius) * np.sin(np.radians(self.absolute_angle))
+    #     c_y = y_curr - (0.1 + radius) * np.cos(np.radians(self.absolute_angle))
+
+    #     # Determine the offset to move in x and y
+    #     x_pos = c_x + (0.1 + radius) * np.sin(np.radians(req.relative_angle + self.absolute_angle))
+    #     y_pos = c_y + (0.1 + radius) * np.cos(np.radians(req.relative_angle + self.absolute_angle))
+    #     # del_x, del_y = (x_pos-x_curr) * 1000, (y_pos-y_curr) * 1000
+    #     del_x, del_y = (x_pos-x_curr), (y_pos-y_curr)
+
+    #     # temp 
+    #     current_pose  = self.move_group.get_current_pose().pose
+    #     print("current pose. x: %s y: %s z: %s " % (current_pose.position.x, current_pose.position.y, current_pose.position.z))
+
+    #     print("del_x: %s del_y: %s" % (del_x, del_y))
+
+    #     self.pose_goal  = self.move_group.get_current_pose().pose
+    #     print("position before. x: %s, y: %s, z: %s" % (self.pose_goal.position.x, self.pose_goal.position.y, self.pose_goal.position.z))
+
+    #     self.pose_goal.orientation = self.robot.get_link('link_eef').pose().pose.orientation 
+    #     # self.move_group.set_goal_tolerance(0.5)
+
+    #     print ("The quaternion representation is %s %s %s %s." % (self.pose_goal.orientation.x, self.pose_goal.orientation.y, self.pose_goal.orientation.z, self.pose_goal.orientation.w))
+    #     quaternion = (
+    #         self.pose_goal.orientation.x,
+    #         self.pose_goal.orientation.y,
+    #         self.pose_goal.orientation.z,
+    #         self.pose_goal.orientation.w 
+    #     )
+    #     euler = list(tf_conversions.transformations.euler_from_quaternion(quaternion))
+    #     print ("euler: roll: %s pitch: %s yaw: %s " % (euler[0], euler[1], euler[2]))
+
+    #     # add in relative angle to yaw
+    #     euler[2] += np.deg2rad(-req.relative_angle)
+
+    #     print ("euler: roll: %s pitch: %s yaw: %s " % (euler[0], euler[1], euler[2]))        
+    #     # convert euler to quaternion
+    #     quaternion = tf_conversions.transformations.quaternion_from_euler(euler[0], euler[1], euler[2])
+
+    #     print ("Final quaternion representation is %s %s %s %s." % (quaternion[0], quaternion[1], quaternion[2], quaternion[3]))
+
+    #     # '''
+    #     self.pose_goal.position.x += del_x
+    #     self.pose_goal.position.y += del_y
+    #     print("final position needed. x: %s, y: %s, z: %s" % (self.pose_goal.position.x, self.pose_goal.position.y, self.pose_goal.position.z))
+    #     print ("The quaternion representation is %s %s %s %s." % (quaternion[0], quaternion[1], quaternion[2], quaternion[3]))
+    #     self.pose_goal.orientation.x = quaternion[0]
+    #     self.pose_goal.orientation.y = quaternion[1]
+    #     self.pose_goal.orientation.z = quaternion[2]
+    #     self.pose_goal.orientation.w = quaternion[3]
+    #     # '''
+
+    #     #################################################################################################
+        
+    #     # adding constraints to the end effector x,y,z
+
+    #     orientation_constraint = moveit_msgs.msg.OrientationConstraint()
+    #     orientation_constraint.header.frame_id = "link_base" #must give reference frame
+    #     orientation_constraint.link_name = "link_eef" #must give end effector frame
+
+    #     orientation_constraint.orientation = self.pose_goal.orientation
+    #     orientation_constraint.absolute_x_axis_tolerance = 3.14  # Set the tolerance for the x-axis orientation
+    #     orientation_constraint.absolute_y_axis_tolerance = 3.14  # Set the tolerance for the y-axis orientation
+    #     orientation_constraint.absolute_z_axis_tolerance = 0.5 # Set the tolerance for the z-axis orientation
+
+    #     orientation_constraint.weight = 1.0
+
+    #     # # position_constraint =  
+    #     # # position_constraint.position.z = self.pose_goal.position.z
+
+    #     constraints = moveit_msgs.msg.Constraints()
+    #     constraints.orientation_constraints.append(orientation_constraint)
+    #     self.move_group.set_path_constraints(constraints)
+
+    #     ################################################################################################
+
+    #     # waypoints = []
+    #     # waypoints.append(self.pose_goal)
+    #     # (plan, fraction) = self.move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
+    #     # self.move_group.execute(plan, wait=True)
+
+    #     #################################################################################################
+
+    #     self.move_group.set_pose_target(self.pose_goal)
+
+    #     success = self.move_group.go(wait=True)
+    #     self.move_group.stop()
+    #     self.move_group.clear_pose_targets()
+    #     # self.move_group.clear_constraints()
+
+    #     self.absolute_angle += req.relative_angle
+
+    #     self.state = "CORN_OFFSET"
+    #     return ArcCornResponse(absolute_angle=self.absolute_angle, success="DONE")
+
     @classmethod
     def ArcCorn(self, req: ArcCornRequest) -> ArcCornResponse:
-        '''
-        Arc around the cornstalk by the specified angle
-
-        Parameters:
-            req (ArcCornRequest): The request:
-                                  - relative_angle - The relative angle to rotate about the cornstalk (deg)
-        
-        Returns:
-            ArcCornResponse: The response:
-                              - absolute_angle - The absolute angle of the current position
-                              - success - The success of the operation (DONE / ERROR)
-        '''
-
         if self.state != "CORN_OFFSET" and self.state!="CORN_HOOK":
             rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_OFFSET"))
             return ArcCornResponse(success="ERROR")
@@ -723,87 +834,59 @@ class xArm_Motion():
         radius = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
         x_curr, y_curr = trans.x, trans.y
 
-        c_x = x_curr - (0.1 + radius) * np.sin(np.radians(self.absolute_angle))
-        c_y = y_curr - (0.1 + radius) * np.cos(np.radians(self.absolute_angle))
+        # Create a cartesian path to arc
+        waypoints = []
+        resolution = 1.0 # Arc resolution in degrees
 
-        # Determine the offset to move in x and y
-        x_pos = c_x + (0.1 + radius) * np.sin(np.radians(req.relative_angle + self.absolute_angle))
-        y_pos = c_y + (0.1 + radius) * np.cos(np.radians(req.relative_angle + self.absolute_angle))
-        # del_x, del_y = (x_pos-x_curr) * 1000, (y_pos-y_curr) * 1000
-        del_x, del_y = (x_pos-x_curr), (y_pos-y_curr)
+        res = -resolution if req.relative_angle < 0 else resolution
 
-        # temp 
-        current_pose  = self.move_group.get_current_pose().pose
-        print("current pose. x: %s y: %s z: %s " % (current_pose.position.x, current_pose.position.y, current_pose.position.z))
+        for ang in np.arange(res, req.relative_angle, res):
+            c_x = x_curr - (0.1 + radius) * np.sin(np.radians(self.absolute_angle))
+            c_y = y_curr - (0.1 + radius) * np.cos(np.radians(self.absolute_angle))
 
-        print("del_x: %s del_y: %s" % (del_x, del_y))
+            # Determine the offset to move in x and y
+            x_pos = c_x + (0.1 + radius) * np.sin(np.radians(ang + self.absolute_angle))
+            y_pos = c_y + (0.1 + radius) * np.cos(np.radians(ang + self.absolute_angle))
+            del_x, del_y = (x_pos-x_curr), (y_pos-y_curr)
 
-        # appproach to try
-        # * convert the current quaternion into euler angle
-        # * add in relt angle  to euler - convert to quaternion
-        # *do the same thing with relative offset - have the arm move to that 
+            # Convert to pose
+            pose_goal = self.move_group.get_current_pose().pose
+            
+            # Update orientation
+            quaternion = (
+                pose_goal.orientation.x,
+                pose_goal.orientation.y,
+                pose_goal.orientation.z,
+                pose_goal.orientation.w 
+            )
+            euler = list(tf_conversions.transformations.euler_from_quaternion(quaternion))
+            euler[2] += np.deg2rad(-ang)
+            quaternion = tf_conversions.transformations.quaternion_from_euler(euler[0], euler[1], euler[2])
+            
+            pose_goal.position.x += del_x
+            pose_goal.position.y += del_y
+            pose_goal.orientation.x = quaternion[0]
+            pose_goal.orientation.y = quaternion[1]
+            pose_goal.orientation.z = quaternion[2]
+            pose_goal.orientation.w = quaternion[3]
 
-        # NOTE: current orientation of end effector is not 0 0 0 euler
+            waypoints.append(pose_goal)
 
-        self.pose_goal  = self.move_group.get_current_pose().pose
-        print("position before. x: %s, y: %s, z: %s" % (self.pose_goal.position.x, self.pose_goal.position.y, self.pose_goal.position.z))
+        plan, _ = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        self.move_group.execute(plan, wait=True)
 
-        self.pose_goal.orientation = self.robot.get_link('link_eef').pose().pose.orientation 
-        # self.move_group.set_goal_tolerance(0.5)
-
-        print ("The quaternion representation is %s %s %s %s." % (self.pose_goal.orientation.x, self.pose_goal.orientation.y, self.pose_goal.orientation.z, self.pose_goal.orientation.w))
+        pose = self.move_group.get_current_pose().pose
         quaternion = (
-            self.pose_goal.orientation.x,
-            self.pose_goal.orientation.y,
-            self.pose_goal.orientation.z,
-            self.pose_goal.orientation.w 
+            pose.orientation.x,
+            pose.orientation.y,
+            pose.orientation.z,
+            pose.orientation.w 
         )
         euler = list(tf_conversions.transformations.euler_from_quaternion(quaternion))
-        print ("euler: roll: %s pitch: %s yaw: %s " % (euler[0], euler[1], euler[2]))
-
-        # add in relative angle to yaw
-        euler[2] += np.deg2rad(-req.relative_angle)
-
-        print ("euler: roll: %s pitch: %s yaw: %s " % (euler[0], euler[1], euler[2]))        
-        # convert euler to quaternion
-        quaternion = tf_conversions.transformations.quaternion_from_euler(euler[0], euler[1], euler[2])
-
-        print ("Final quaternion representation is %s %s %s %s." % (quaternion[0], quaternion[1], quaternion[2], quaternion[3]))
-
-        # '''
-        self.pose_goal.position.x += del_x
-        self.pose_goal.position.y += del_y
-        print("final position needed. x: %s, y: %s, z: %s" % (self.pose_goal.position.x, self.pose_goal.position.y, self.pose_goal.position.z))
-        # self.pose_goal.position.z = 0.0
-        # TODO: check if we need to pass in radians degrees
-        # quaternion = tf_conversions.transformations.quaternion_from_euler(0, 0, np.deg2rad(-req.relative_angle))
-        print ("The quaternion representation is %s %s %s %s." % (quaternion[0], quaternion[1], quaternion[2], quaternion[3]))
-        self.pose_goal.orientation.x = quaternion[0]
-        self.pose_goal.orientation.y = quaternion[1]
-        self.pose_goal.orientation.z = quaternion[2]
-        self.pose_goal.orientation.w = quaternion[3]
-        # '''
-
-        self.move_group.set_pose_target(self.pose_goal)
-
-        success = self.move_group.go(wait=True)
-        self.move_group.stop()
-        self.move_group.clear_pose_targets()
-
-        ''' TODO: Remove xArm API calls
-        # Move to offset w/ yaw angle
-        code = self.arm.set_position_aa(axis_angle_pose=[del_x, del_y, 0, 0, 0, -req.relative_angle], speed=40, relative=True, wait=True, is_radian=False)
-
-        if code != 0:
-            rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return ArcCornResponse(success="ERROR")
-        '''
-
-        self.absolute_angle += req.relative_angle
+        self.absolute_angle = int(np.round(-np.rad2deg(euler[2])))
 
         self.state = "CORN_OFFSET"
         return ArcCornResponse(absolute_angle=self.absolute_angle, success="DONE")
-    
 
 if __name__ == '__main__':
     rospy.init_node('nimo_manipulation')
