@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import numpy as np
 import rospy
+import copy
 import time
 import yaml
 import rospkg
@@ -175,10 +176,8 @@ class xArm_Motion():
         self.move_group.stop()
         self.move_group.clear_pose_targets()
 
-        ''' TODO: figure out how we want to do error handling
-        if success != True:
-            rospy.logerr("set_joint_value_target returned error {}".format(success))
-        '''
+        if not success:
+            print("GoStow failed. Unable to reach the goal.") 
 
         self.state = "STOW"
 
@@ -213,10 +212,9 @@ class xArm_Motion():
         self.move_group.stop()
         self.move_group.clear_pose_targets()
 
-        ''' TODO: figure out how we want to do error handling
-        if success != True:
-            rospy.logerr("set_joint_value_target returned error {}".format(success))
-        '''
+        if not success:
+            print("GoHome failed. Unable to reach the goal.") 
+
 
         self.state = "HOME"
 
@@ -418,124 +416,100 @@ class xArm_Motion():
                               - success - The success of the operation (DONE / ERROR)
         '''
 
-        if self.state != "HOME":
+        if self.state != "CORN_OFFSET":
             rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_HOOK"))
             return HookCornResponse(success="ERROR")
 
         if self.verbose: rospy.loginfo("Hooking cornstalk {}, {}, {}".format(req.grasp_point.x, req.grasp_point.y, req.grasp_point.z))
 
-        # Create the transform to the grasp point
-        cornTransform = TransformStamped()
-        cornTransform.header.stamp = rospy.Time.now()
-        cornTransform.header.frame_id = "world"
-        cornTransform.child_frame_id = "corn_cam"
-        
-        cornTransform.transform.translation.x = req.grasp_point.x
-        cornTransform.transform.translation.y = req.grasp_point.y
-        cornTransform.transform.translation.z = req.grasp_point.z
-        cornTransform.transform.rotation.w = 1.0
+        pose_goal = self.robot.get_link('link_eef').pose().pose
 
-        self.broadcaster.sendTransform(cornTransform)
+        pos_res = 0.01 # Resolution in m 
+        deg_res = 1.0 # Resolution in degrees
+
+        waypoints = []
+        for pos in np.arange(-pos_res, -0.085, -pos_res):
+            pose_goal = self.move_group.get_current_pose().pose
+
+            pose_goal.position.x += pos
+            waypoints.append(copy.deepcopy(pose_goal))
+
+        plan, _ = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        self.move_group.execute(plan, wait=True)
+
+        waypoints = []
+        for pos in np.arange(-pos_res, -0.12, -pos_res):
+            pose_goal = self.move_group.get_current_pose().pose
+
+            pose_goal.position.y += pos
+            waypoints.append(copy.deepcopy(pose_goal))
+        
+        plan, _ = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        self.move_group.execute(plan, wait=True)
+
+        waypoints = []
+        for pos in np.arange(pos_res, 0.085, pos_res):
+            pose_goal = self.move_group.get_current_pose().pose
+
+            pose_goal.position.x += pos
+            waypoints.append(copy.deepcopy(pose_goal))
+
+        plan, _ = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        self.move_group.execute(plan, wait=True)
 
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
         tf2_ros.TransformListener(tfBuffer)
 
-        ''' TODO: Remove xArm API calls
-        if req.grasp_point.x < 0.2:
-            # include pre grasp pose
-            # code = self.arm.set_servo_angle(angle=[-90, -90, 0, -90, 0, 0], is_radian=False, wait=True)
-
-            code = self.arm.set_servo_angle(angle=[0, -90, 0, -90, 90, 0], speed=30, is_radian=False, wait=True)
-            if code != 0:
-                rospy.logerr("set_servo_angle returned error {}".format(code))
-                return HookCornResponse(success="ERROR")
-            
-            # code = self.arm.set_servo_angle(angle=[-79.4, -81.1, -15.2, -59.5, 12.4, -31.1], speed=30, is_radian=False, wait=True)
-
-            code = self.arm.set_position_aa(axis_angle_pose=[0, -5, 120, 0, 0, 0], speed=30, relative=True, wait=True)
-
-            if code != 0:
-                rospy.logerr("set_servo_angle returned error {}".format(code))
-                return HookCornResponse(success="ERROR")
-        '''
-        self.pose_goal  = self.move_group.get_current_pose().pose
-        self.pose_goal.orientation = self.robot.get_link('link_eef').pose().pose.orientation 
-
-        # Get the relative movement to the cornstalk
-        delta = tfBuffer.lookup_transform('corn_cam', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
-        del_x, del_y, del_z = -delta.x * 1000, -delta.y * 1000, -delta.z * 1000 
-        del_x += (del_x - 0.144) * 0.026 + 0.05
-
-        del_y -= 10
-
-        # Move to pre-grasp 1/2
-        x_mov, y_mov, z_mov = del_x-85, del_y, del_z
-        x_mov += 27
-        
-        # stored for unhook "pre-grasp"
-        self.x_mov_unhook, self.y_mov_unhook, self.z_mov_unhook = -x_mov, -y_mov, -z_mov
-
-        # move to pre-grasp
-        self.pose_goal.position.x = x_mov
-        self.pose_goal.position.y = y_mov
-        self.pose_goal.position.z = z_mov
-
-        self.move_group.set_pose_target(self.pose_goal)
-
-        success = self.move_group.go(wait=True)
-        self.move_group.stop()
-        self.move_group.clear_pose_targets()
-
-        '''
-        # code = self.arm.set_position_aa(axis_angle_pose=[x_mov, y_mov, z_mov, 0, 0, 0], speed=30, relative=True, wait=True)
-        code = self.arm.set_position_aa(axis_angle_pose=[0, 0, z_mov, 0, 0, 0], speed=30, relative=True, wait=True)
-        code = self.arm.set_position_aa(axis_angle_pose=[x_mov, 0, 0, 0, 0, 0], speed=30, relative=True, wait=True)
-        
-
-        self.move_group.set_pose_target(self.pose_goal)
-        success = self.move_group.go(wait=True)
-        self.move_group.stop()
-        self.move_group.clear_pose_targets()
-
-        if code != 0:
-            rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return HookCornResponse(success="ERROR")
-        
-        # Move to pre-grasp 2/2
-        code = self.arm.set_position_aa(axis_angle_pose=[0, y_mov, 0, 0, 0, 0], speed=30, relative=True, wait=True)
-
-        if code != 0:
-            rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return HookCornResponse(success="ERROR")
-        '''
-
-        # Move to grasp
-        code = self.arm.set_position_aa(axis_angle_pose=[85, 0, 0, 0, 0, 0], speed=30, relative=True, wait=True)
-
-        if code != 0:
-            rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return HookCornResponse(success="ERROR")
-        
-        ''' TODO: See how to modify this in coordination with ArcCorn with moveit
-        # Move to insertion angle
-        trans = tfBuffer.lookup_transform('link_base', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
+        waypoints = []
+        deg_res = -deg_res if req.insert_angle < 0 else deg_res
         radius = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
-        x_curr, y_curr = trans.x, trans.y
+        for ang in np.arange(deg_res, req.insert_angle, deg_res):
+            pose_goal = self.move_group.get_current_pose().pose
+            x_curr = pose_goal.position.x
+            y_curr = pose_goal.position.y
 
-        # Determine the offset to move in x and y 
-        x_pos = x_curr + radius * np.sin(np.radians(req.insert_angle))
-        y_pos = (y_curr-radius) + radius * np.cos(np.radians(req.insert_angle))
-        del_x, del_y = (x_pos-x_curr) * 1000, (y_pos-y_curr) * 1000
+            c_x = x_curr - (0.1 + radius) * np.sin(np.radians(self.absolute_angle))
+            c_y = y_curr - (0.1 + radius) * np.cos(np.radians(self.absolute_angle))
 
-        self.unhook_x, self.unhook_y = -del_x, -del_y
+            # Determine the offset to move in x and y
+            x_pos = c_x + (0.1 + radius) * np.sin(np.radians(ang + self.absolute_angle))
+            y_pos = c_y + (0.1 + radius) * np.cos(np.radians(ang + self.absolute_angle))
+            del_x, del_y = (x_pos-x_curr), (y_pos-y_curr)
+            
+            # Update orientation
+            quaternion = (
+                pose_goal.orientation.x,
+                pose_goal.orientation.y,
+                pose_goal.orientation.z,
+                pose_goal.orientation.w 
+            )
+            euler = list(tf_conversions.transformations.euler_from_quaternion(quaternion))
+            euler[2] += np.deg2rad(-ang)
+            quaternion = tf_conversions.transformations.quaternion_from_euler(euler[0], euler[1], euler[2])
+            
+            pose_goal.position.x += del_x
+            pose_goal.position.y += del_y
+            pose_goal.orientation.x = quaternion[0]
+            pose_goal.orientation.y = quaternion[1]
+            pose_goal.orientation.z = quaternion[2]
+            pose_goal.orientation.w = quaternion[3]
 
-        self.absolute_angle = -req.insert_angle
-        code = self.arm.set_position_aa(axis_angle_pose=[del_x, del_y, 0, 0, 0, self.absolute_angle], speed=30, relative=True, wait=True, is_radian=False)
-        
-        if code != 0:
-            rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return HookCornResponse(success="ERROR")
-        '''
+            waypoints.append(pose_goal)
+
+        plan, _ = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        self.move_group.execute(plan, wait=True)
+
+        pose = self.move_group.get_current_pose().pose
+        quaternion = (
+            pose.orientation.x,
+            pose.orientation.y,
+            pose.orientation.z,
+            pose.orientation.w 
+        )
+        euler = list(tf_conversions.transformations.euler_from_quaternion(quaternion))
+        self.absolute_angle = int(np.round(-np.rad2deg(euler[2])))
+
+        rospy.logwarn(self.absolute_angle)
 
         self.state = "CORN_HOOK"
         return HookCornResponse(success="DONE")
@@ -549,50 +523,83 @@ class xArm_Motion():
             UnhookCornResponse: The response:
                            - success - The success of the operation (DONE / ERROR)
         '''
+
+        pos_res = 0.01 # Resolution in m 
+        deg_res = 1.0 # Resolution in degrees
         
-        if self.state != "CORN_HOOK":
-            rospy.logerr("Invalid Command: Cannot move from {} to {} via UnhookCorn".format(self.state, "HOME"))
-            return UnhookCornResponse(success="ERROR")
+        tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
+        tf2_ros.TransformListener(tfBuffer)
 
-        if self.verbose: rospy.loginfo("Unhooking cornstalk")
+        waypoints = []
+        deg_res = -deg_res if -self.absolute_angle < 0 else deg_res
+        radius = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
+        for ang in np.arange(deg_res, -self.absolute_angle, deg_res):
+            pose_goal = self.move_group.get_current_pose().pose
+            x_curr = pose_goal.position.x
+            y_curr = pose_goal.position.y
 
-        code = self.arm.set_position_aa(axis_angle_pose=[self.unhook_x, self.unhook_y, 0, 0, 0, -self.absolute_angle], speed=30, relative=True, wait=True, is_radian=False)
+            c_x = x_curr - (0.1 + radius) * np.sin(np.radians(self.absolute_angle))
+            c_y = y_curr - (0.1 + radius) * np.cos(np.radians(self.absolute_angle))
+
+            # Determine the offset to move in x and y
+            x_pos = c_x + (0.1 + radius) * np.sin(np.radians(ang + self.absolute_angle))
+            y_pos = c_y + (0.1 + radius) * np.cos(np.radians(ang + self.absolute_angle))
+            del_x, del_y = (x_pos-x_curr), (y_pos-y_curr)
+            
+            # Update orientation
+            quaternion = (
+                pose_goal.orientation.x,
+                pose_goal.orientation.y,
+                pose_goal.orientation.z,
+                pose_goal.orientation.w 
+            )
+            euler = list(tf_conversions.transformations.euler_from_quaternion(quaternion))
+            euler[2] += np.deg2rad(-ang)
+            quaternion = tf_conversions.transformations.quaternion_from_euler(euler[0], euler[1], euler[2])
+            
+            pose_goal.position.x += del_x
+            pose_goal.position.y += del_y
+            pose_goal.orientation.x = quaternion[0]
+            pose_goal.orientation.y = quaternion[1]
+            pose_goal.orientation.z = quaternion[2]
+            pose_goal.orientation.w = quaternion[3]
+
+            waypoints.append(pose_goal)
+
+        plan, _ = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        self.move_group.execute(plan, wait=True)
+
+        waypoints = []
+        for pos in np.arange(-pos_res, -0.085, -pos_res):
+            pose_goal = self.move_group.get_current_pose().pose
+
+            pose_goal.position.x += pos
+            waypoints.append(copy.deepcopy(pose_goal))
+
+        plan, _ = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        self.move_group.execute(plan, wait=True)
+
+        waypoints = []
+        for pos in np.arange(pos_res, 0.12, pos_res):
+            pose_goal = self.move_group.get_current_pose().pose
+
+            pose_goal.position.y += pos
+            waypoints.append(copy.deepcopy(pose_goal))
         
-        if code != 0:
-            rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return UnhookCornResponse(success="ERROR")
+        plan, _ = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        self.move_group.execute(plan, wait=True)
 
-        # Move to ungrasp
-        code = self.arm.set_position_aa(axis_angle_pose=[-85, 0, 0, 0, 0, 0], speed=30, relative=True, wait=True)
+        waypoints = []
+        for pos in np.arange(pos_res, 0.085, pos_res):
+            pose_goal = self.move_group.get_current_pose().pose
 
-        if code != 0:
-            rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return UnhookCornResponse(success="ERROR")
-        
-        # Move to pre-grasp
-        code = self.arm.set_position_aa(axis_angle_pose=[0, self.y_mov_unhook, 0, 0, 0, 0], speed=30, relative=True, wait=True)
+            pose_goal.position.x += pos
+            waypoints.append(copy.deepcopy(pose_goal))
 
-        if code != 0:
-            rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return UnhookCornResponse(success="ERROR")
-        
-        # MODIFIED
-        # code = self.arm.set_position_aa(axis_angle_pose=[self.x_mov_unhook, self.y_mov_unhook, self.z_mov_unhook, 0, 0, 0], speed=30, relative=True, wait=True)
-        code = self.arm.set_position_aa(axis_angle_pose=[self.x_mov_unhook, 0, 0, 0, 0, 0], speed=30, relative=True, wait=True)
-        code = self.arm.set_position_aa(axis_angle_pose=[0, 0, self.z_mov_unhook, 0, 0, 0], speed=30, relative=True, wait=True)
+        plan, _ = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        self.move_group.execute(plan, wait=True)
 
-        if code != 0:
-            rospy.logerr("set_arm_position_aa returned error {}".format(code))
-            return UnhookCornResponse(success="ERROR")
-        
-        # Joint angles corresponding to end-effector facing the left side of the amiga base
-        code = self.arm.set_servo_angle(angle=[0, -90, 0, -90, 90, 0], is_radian=False, wait=True)
-
-        if code != 0:
-            rospy.logerr("set_servo_angle returned error {}".format(code))
-            return UnhookCornResponse(success="ERROR")
-
-        self.state = "HOME"
+        self.state = "CORN_OFFSET"
         return UnhookCornResponse(success="DONE")
 
     @classmethod
