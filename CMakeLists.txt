@@ -58,7 +58,6 @@ add_service_files(
   GoHome.srv
   GoStow.srv
   LookatCorn.srv
-  UngoCorn.srv
   HookCorn.srv
   UnhookCorn.srv
   LookatAngle.srv

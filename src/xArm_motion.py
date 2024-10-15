@@ -9,13 +9,9 @@ import tf2_ros
 import tf_conversions
 import moveit_commander
 from sensor_msgs.msg import JointState
+from geometry_msgs.msg import TransformStamped
 
 from nimo_manipulation.srv import *
-
-'''
-TODO:
-- Error handling for all movements
-'''
 
 class xArm_Motion():
     @classmethod
@@ -41,7 +37,7 @@ class xArm_Motion():
         self.get_xArm_service = rospy.Service('UnhookCorn', UnhookCorn, self.UnhookCorn)
 
         # Internal variables
-        self.state = "HOME" # TODO: This may not be true on startup
+        self.state = "STOW"
         # Angle of xArm relative to the cornstalk
         self.absolute_angle = 0 
 
@@ -428,14 +424,19 @@ class xArm_Motion():
 
         # Reset the absolute angle to the cornstalk
         self.absolute_angle = 0
+
+        tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
+        tf2_ros.TransformListener(tfBuffer)
+        delta = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
+
         # get the current orientation of the end effector
         self.pose_goal.orientation = self.robot.get_link('link_eef').pose().pose.orientation
 
         self.pose_goal.position.x = req.grasp_point.x
-        self.pose_goal.position.y = req.grasp_point.y
-        self.pose_goal.position.z = req.grasp_point.z
+        self.pose_goal.position.y = req.grasp_point.y + delta.z + 0.12
+        self.pose_goal.position.z = req.grasp_point.z - delta.y
         self.move_group.set_pose_target(self.pose_goal)
-
+    
         success = self.move_group.go(self.pose_goal, wait=True)
         self.move_group.stop()
         self.move_group.clear_pose_targets()
@@ -464,7 +465,7 @@ class xArm_Motion():
             rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_HOOK"))
             return HookCornResponse(success="ERROR")
 
-        if self.verbose: rospy.loginfo("Hooking cornstalk {}, {}, {}".format(req.grasp_point.x, req.grasp_point.y, req.grasp_point.z))
+        if self.verbose: rospy.loginfo("Hooking cornstalk")
 
         pose_goal = self.robot.get_link('link_eef').pose().pose
 
@@ -518,12 +519,12 @@ class xArm_Motion():
             x_curr = pose_goal.position.x
             y_curr = pose_goal.position.y
 
-            c_x = x_curr - (0.1 + radius) * np.sin(np.radians(self.absolute_angle))
-            c_y = y_curr - (0.1 + radius) * np.cos(np.radians(self.absolute_angle))
+            c_x = x_curr - (radius) * np.sin(np.radians(self.absolute_angle))
+            c_y = y_curr - (radius) * np.cos(np.radians(self.absolute_angle))
 
             # Determine the offset to move in x and y
-            x_pos = c_x + (0.1 + radius) * np.sin(np.radians(ang + self.absolute_angle))
-            y_pos = c_y + (0.1 + radius) * np.cos(np.radians(ang + self.absolute_angle))
+            x_pos = c_x + (radius) * np.sin(np.radians(ang + self.absolute_angle))
+            y_pos = c_y + (radius) * np.cos(np.radians(ang + self.absolute_angle))
             del_x, del_y = (x_pos-x_curr), (y_pos-y_curr)
             
             # Update orientation
@@ -588,12 +589,12 @@ class xArm_Motion():
             x_curr = pose_goal.position.x
             y_curr = pose_goal.position.y
 
-            c_x = x_curr - (0.1 + radius) * np.sin(np.radians(self.absolute_angle))
-            c_y = y_curr - (0.1 + radius) * np.cos(np.radians(self.absolute_angle))
+            c_x = x_curr - (radius) * np.sin(np.radians(self.absolute_angle))
+            c_y = y_curr - (radius) * np.cos(np.radians(self.absolute_angle))
 
             # Determine the offset to move in x and y
-            x_pos = c_x + (0.1 + radius) * np.sin(np.radians(ang + self.absolute_angle))
-            y_pos = c_y + (0.1 + radius) * np.cos(np.radians(ang + self.absolute_angle))
+            x_pos = c_x + (radius) * np.sin(np.radians(ang + self.absolute_angle))
+            y_pos = c_y + (radius) * np.cos(np.radians(ang + self.absolute_angle))
             del_x, del_y = (x_pos-x_curr), (y_pos-y_curr)
             
             # Update orientation
@@ -675,12 +676,12 @@ class xArm_Motion():
         res = -resolution if req.relative_angle < 0 else resolution
 
         for ang in np.arange(res, req.relative_angle, res):
-            c_x = x_curr - (0.1 + radius) * np.sin(np.radians(self.absolute_angle))
-            c_y = y_curr - (0.1 + radius) * np.cos(np.radians(self.absolute_angle))
+            c_x = x_curr - (0.12 + radius) * np.sin(np.radians(self.absolute_angle))
+            c_y = y_curr - (0.12 + radius) * np.cos(np.radians(self.absolute_angle))
 
             # Determine the offset to move in x and y
-            x_pos = c_x + (0.1 + radius) * np.sin(np.radians(ang + self.absolute_angle))
-            y_pos = c_y + (0.1 + radius) * np.cos(np.radians(ang + self.absolute_angle))
+            x_pos = c_x + (0.12 + radius) * np.sin(np.radians(ang + self.absolute_angle))
+            y_pos = c_y + (0.12 + radius) * np.cos(np.radians(ang + self.absolute_angle))
             del_x, del_y = (x_pos-x_curr), (y_pos-y_curr)
 
             # Convert to pose
