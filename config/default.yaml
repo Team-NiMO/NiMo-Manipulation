@@ -8,5 +8,5 @@ gripper:
   approach: left             # Options: left, front
 
 collision:
-  gripper: False              # Whether the gripper has a collision box
+  gripper: True              # Whether the gripper has a collision box
   base: tabletop             # Options: tabletop, amiga, none
