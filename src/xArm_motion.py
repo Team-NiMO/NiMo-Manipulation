@@ -120,8 +120,7 @@ class xArm_Motion():
             p.pose.position.x = - (0.38 + (0.42/2))
             p.pose.position.y = - (0.70 + (0.26/2))
             p.pose.position.z = 0.82/2
-            self.scene.add_box('amigaWheel', p, size=(0.26, 0.42, 0.82))
-            self.scene.add_plane("amigaWheel", p)
+            self.scene.add_box('amigaWheel', p, size=(0.42, 0.26, 0.82))
 
             # Setup base rod cuboid
             p = geometry_msgs.msg.PoseStamped()
@@ -129,14 +128,14 @@ class xArm_Motion():
             p.pose.position.x = ...
             p.pose.position.y = ...
             p.pose.position.z = ...
-            self.scene.add_box('baseRod', p, size=(...))
+            self.scene.add_box('baseRod', p, size=(..., ..., ...))
             self.scene.add_plane("baseRod", p)
 
-            # Setup height plane
-            p = geometry_msgs.msg.PoseStamped()
-            p.header.frame_id = frame
-            p.pose.position.z = ...
-            self.scene.add_plane("height", p)
+            # # Setup height plane
+            # p = geometry_msgs.msg.PoseStamped()
+            # p.header.frame_id = frame
+            # p.pose.position.z = ...
+            # self.scene.add_plane("height", p)
 
         elif self.base_collision == "none":
             pass
