@@ -38,7 +38,7 @@ class xArm_Motion():
         self.get_xArm_service = rospy.Service('UnhookCorn', UnhookCorn, self.UnhookCorn)
 
         # Internal variables
-        self.state = "CORN_OFFSET"
+        self.state = "STOW"
         # Angle of xArm relative to the cornstalk
         self.absolute_angle = 0 
 
@@ -114,28 +114,39 @@ class xArm_Motion():
             p.pose.position.z = 0.838
             self.scene.add_plane("ground", p)
 
-            # Setup amiga wheel
+            # Setup amiga wheel left
             p = geometry_msgs.msg.PoseStamped()
             p.header.frame_id = frame
             p.pose.position.x = - (0.38 + (0.42/2))
             p.pose.position.y = - (0.70 + (0.26/2))
             p.pose.position.z = 0.82/2
-            self.scene.add_box('amigaWheel', p, size=(0.42, 0.26, 0.82))
+            self.scene.add_box('amigaWheelLeft', p, size=(0.42, 0.26, 0.82))
 
-            # Setup base rod cuboid
+            # Setup amiga wheel right
+            p = geometry_msgs.msg.PoseStamped()
+            p.header.frame_id = frame
+            p.pose.position.x = - (0.38 + (0.42/2))
+            p.pose.position.y = (0.70 + (0.26/2))
+            p.pose.position.z = 0.82/2
+            self.scene.add_box('amigaWheelRight', p, size=(0.42, 0.26, 0.82))
+
+            '''
+            # Setup external mechanisms
             p = geometry_msgs.msg.PoseStamped()
             p.header.frame_id = frame
             p.pose.position.x = ...
             p.pose.position.y = ...
             p.pose.position.z = ...
-            self.scene.add_box('baseRod', p, size=(..., ..., ...))
-            self.scene.add_plane("baseRod", p)
+            self.scene.add_box('EM', p, size=(..., ..., ...))
+            self.scene.add_plane("EM", p)
+            '''
 
-            # # Setup height plane
-            # p = geometry_msgs.msg.PoseStamped()
-            # p.header.frame_id = frame
-            # p.pose.position.z = ...
-            # self.scene.add_plane("height", p)
+            # Setup height plane
+            p = geometry_msgs.msg.PoseStamped()
+            p.header.frame_id = frame
+            #height from base_link to ground - height from rod to ground
+            p.pose.position.z = 0.838 - 0.82 
+            self.scene.add_plane("height", p)
 
         elif self.base_collision == "none":
             pass
