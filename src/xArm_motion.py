@@ -8,6 +8,7 @@ import rospkg
 import tf2_ros
 import tf_conversions
 import moveit_commander
+import moveit_msgs
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import TransformStamped
 
@@ -106,7 +107,7 @@ class xArm_Motion():
             p.pose.orientation.w = np.sqrt(2) / 2.0
             self.scene.add_plane("table", p)
         
-        if self.base_collision = "amiga":
+        if self.base_collision == "amiga":
             # Setup ground plane
             p = geometry_msgs.msg.PoseStamped()
             p.header.frame_id = frame
@@ -114,11 +115,28 @@ class xArm_Motion():
             self.scene.add_plane("ground", p)
 
             # Setup amiga wheel
-            
+            p = geometry_msgs.msg.PoseStamped()
+            p.header.frame_id = frame
+            p.pose.position.x = - (0.38 + (0.42/2))
+            p.pose.position.y = - (0.70 + (0.26/2))
+            p.pose.position.z = 0.82/2
+            self.scene.add_box('amigaWheel', p, size=(0.26, 0.42, 0.82))
+            self.scene.add_plane("amigaWheel", p)
 
             # Setup base rod cuboid
+            p = geometry_msgs.msg.PoseStamped()
+            p.header.frame_id = frame
+            p.pose.position.x = ...
+            p.pose.position.y = ...
+            p.pose.position.z = ...
+            self.scene.add_box('baseRod', p, size=(...))
+            self.scene.add_plane("baseRod", p)
 
-            # Setup height
+            # Setup height plane
+            p = geometry_msgs.msg.PoseStamped()
+            p.header.frame_id = frame
+            p.pose.position.z = ...
+            self.scene.add_plane("height", p)
 
         elif self.base_collision == "none":
             pass
