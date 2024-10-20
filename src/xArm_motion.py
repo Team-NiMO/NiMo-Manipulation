@@ -105,6 +105,20 @@ class xArm_Motion():
             p.pose.orientation.y = -np.sqrt(2) / 2.0
             p.pose.orientation.w = np.sqrt(2) / 2.0
             self.scene.add_plane("table", p)
+        
+        if self.base_collision = "amiga":
+            # Setup ground plane
+            p = geometry_msgs.msg.PoseStamped()
+            p.header.frame_id = frame
+            p.pose.position.z = 0.838
+            self.scene.add_plane("ground", p)
+
+            # Setup amiga wheel
+            
+
+            # Setup base rod cuboid
+
+            # Setup height
 
         elif self.base_collision == "none":
             pass
