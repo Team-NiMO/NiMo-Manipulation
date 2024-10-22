@@ -70,7 +70,7 @@ class xArm_Motion():
         self.scene.remove_world_object()
         frame = self.robot.get_planning_frame()
 
-        # Setup end effector box
+        # ---------- For End-Effector Setup ----------
         if self.gripper_collision:
             p = geometry_msgs.msg.PoseStamped()
             p.header.frame_id = "link_eef"
@@ -92,6 +92,7 @@ class xArm_Motion():
             p.pose.position.y = 0.076 / 2 + 0.102 - 0.041 / 2
             self.scene.add_box('ee_hook1', p, size=(0.076, 0.041, 0.065))
 
+        # ---------- For Tabletop Setup ----------
         if self.base_collision == "tabletop":
             # Setup ground plane
             p = geometry_msgs.msg.PoseStamped()
@@ -107,6 +108,7 @@ class xArm_Motion():
             p.pose.orientation.w = np.sqrt(2) / 2.0
             self.scene.add_plane("table", p)
         
+        # ---------- For Amiga Setup ----------
         if self.base_collision == "amiga":
             # Setup ground plane
             p = geometry_msgs.msg.PoseStamped()
@@ -114,7 +116,7 @@ class xArm_Motion():
             p.pose.position.z = 0.838
             self.scene.add_plane("ground", p)
 
-            # Setup amiga wheel left
+            # Setup amiga's driver wheel 
             p = geometry_msgs.msg.PoseStamped()
             p.header.frame_id = frame
             p.pose.position.x = - (0.38 + (0.42/2))
@@ -122,7 +124,7 @@ class xArm_Motion():
             p.pose.position.z = 0.82/2
             self.scene.add_box('amigaWheelLeft', p, size=(0.42, 0.26, 0.82))
 
-            # Setup amiga wheel right
+            # Setup amiga's passenger wheel
             p = geometry_msgs.msg.PoseStamped()
             p.header.frame_id = frame
             p.pose.position.x = - (0.38 + (0.42/2))
@@ -148,49 +150,18 @@ class xArm_Motion():
             p.pose.position.z = 0.838 - 0.82 
             self.scene.add_plane("height", p)
 
+            # # Setup perpendicular frame box (frame holding xArm6)
+            # p = geometry_msgs.msg.PoseStamped()
+            # p.header.frame_id = frame
+            # p.pose.position.x = ...
+            # p.pose.position.y = ...
+            # p.pose.position.z = ...
+            # self.scene.add_box('end_effector', p, size=(..., ..., ...)) # FRAME DIMENSIONS
+
         elif self.base_collision == "none":
             pass
         else:
             raise NotImplementedError
-
-        # ---------- For Amiga Setup ----------
-        # # Setup ground plane
-        # p = geometry_msgs.msg.PoseStamped()
-        # p.header.frame_id = self.robot.get_planning_frame()
-        # p.pose.position.z = ...
-        # self.scene.add_plane("ground", p)
-
-        # # Setup driver's wheel box
-        # p = geometry_msgs.msg.PoseStamped()
-        # p.header.frame_id = frame
-        # p.pose.position.x = ...
-        # p.pose.position.y = ...
-        # p.pose.position.z = ...
-        # self.scene.add_box('end_effector', p, size=(..., ..., ...)) # WHEEL DIMENSIONS
-
-        # # Setup passenger's wheel box
-        # p = geometry_msgs.msg.PoseStamped()
-        # p.header.frame_id = frame
-        # p.pose.position.x = ...
-        # p.pose.position.y = ...
-        # p.pose.position.z = ...
-        # self.scene.add_box('end_effector', p, size=(..., ..., ...)) # WHEEL DIMENSIONS
-
-        # # Setup parallel frame box (frame holding external mechanisms)
-        # p = geometry_msgs.msg.PoseStamped()
-        # p.header.frame_id = frame
-        # p.pose.position.x = ...
-        # p.pose.position.y = ...
-        # p.pose.position.z = ...
-        # self.scene.add_box('end_effector', p, size=(..., ..., ...)) # FRAME DIMENSIONS
-
-        # # Setup perpendicular frame box (frame holding xArm6)
-        # p = geometry_msgs.msg.PoseStamped()
-        # p.header.frame_id = frame
-        # p.pose.position.x = ...
-        # p.pose.position.y = ...
-        # p.pose.position.z = ...
-        # self.scene.add_box('end_effector', p, size=(..., ..., ...)) # FRAME DIMENSIONS
 
     @classmethod
     def loadConfig(self):
