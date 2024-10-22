@@ -540,52 +540,58 @@ class xArm_Motion():
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
         tf2_ros.TransformListener(tfBuffer)
 
-        # waypoints = []
-        # deg_res = -deg_res if -self.absolute_angle < 0 else deg_res
-        # radius = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
-        # for ang in np.arange(deg_res, -self.absolute_angle, deg_res):
-        #     pose_goal = self.move_group.get_current_pose().pose
-        #     x_curr = pose_goal.position.x
-        #     y_curr = pose_goal.position.y
+        waypoints = []
+        self.absolute_angle = req.insert_angle
+        deg_res = -deg_res if -self.absolute_angle > 0 else deg_res
+        radius = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
+        rospy.logwarn("i no enter")
+        rospy.logwarn("deg_res:" + str(deg_res))
+        rospy.logwarn("absolute_angle:" + str(self.absolute_angle))
+        for ang in np.arange(deg_res, self.absolute_angle, deg_res):
+        
+            rospy.logwarn("i've entered")
+            pose_goal = self.move_group.get_current_pose().pose
+            x_curr = pose_goal.position.x
+            y_curr = pose_goal.position.y
 
-        #     c_x = x_curr - (radius) * np.sin(np.radians(self.absolute_angle))
-        #     c_y = y_curr - (radius) * np.cos(np.radians(self.absolute_angle))
+            c_x = x_curr - (radius) * np.sin(np.radians(self.absolute_angle))
+            c_y = y_curr - (radius) * np.cos(np.radians(self.absolute_angle))
 
-        #     # Determine the offset to move in x and y
-        #     x_pos = c_x + (radius) * np.sin(np.radians(ang + self.absolute_angle))
-        #     y_pos = c_y + (radius) * np.cos(np.radians(ang + self.absolute_angle))
-        #     del_x, del_y = (x_pos-x_curr), (y_pos-y_curr)
+            # Determine the offset to move in x and y
+            x_pos = c_x + (radius) * np.sin(np.radians(ang + self.absolute_angle))
+            y_pos = c_y + (radius) * np.cos(np.radians(ang + self.absolute_angle))
+            del_x, del_y = (x_pos-x_curr), (y_pos-y_curr)
             
-        #     # Update orientation
-        #     quaternion = (
-        #         pose_goal.orientation.x,
-        #         pose_goal.orientation.y,
-        #         pose_goal.orientation.z,
-        #         pose_goal.orientation.w 
-        #     )
-        #     euler = list(tf_conversions.transformations.euler_from_quaternion(quaternion))
-        #     euler[2] += np.deg2rad(-ang)
-        #     quaternion = tf_conversions.transformations.quaternion_from_euler(euler[0], euler[1], euler[2])
+            # Update orientation
+            quaternion = (
+                pose_goal.orientation.x,
+                pose_goal.orientation.y,
+                pose_goal.orientation.z,
+                pose_goal.orientation.w 
+            )
+            euler = list(tf_conversions.transformations.euler_from_quaternion(quaternion))
+            euler[2] += np.deg2rad(-ang)
+            quaternion = tf_conversions.transformations.quaternion_from_euler(euler[0], euler[1], euler[2])
             
-        #     pose_goal.position.x += del_x
-        #     pose_goal.position.y += del_y
-        #     pose_goal.orientation.x = quaternion[0]
-        #     pose_goal.orientation.y = quaternion[1]
-        #     pose_goal.orientation.z = quaternion[2]
-        #     pose_goal.orientation.w = quaternion[3]
+            pose_goal.position.x += del_x
+            pose_goal.position.y += del_y
+            pose_goal.orientation.x = quaternion[0]
+            pose_goal.orientation.y = quaternion[1]
+            pose_goal.orientation.z = quaternion[2]
+            pose_goal.orientation.w = quaternion[3]
 
-        #     waypoints.append(pose_goal)
+            waypoints.append(pose_goal)
 
-        # plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
-        # rospy.logwarn("frac  = %.2f" % fraction)
-        # if fraction > 0.95:
-        #     success = self.move_group.execute(plan, wait=True)
-        # else:
-        #     success = False
+        plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        rospy.logwarn("frac  = %.2f" % fraction)
+        if fraction > 0.95:
+            success = self.move_group.execute(plan, wait=True)
+        else:
+            success = False
 
-        # if not success:
-        #     rospy.logerr("GoCorn failed. Unable to reach the goal.")
-        #     return HookCornResponse(success="ERROR")
+        if not success:
+            rospy.logerr("ARC GoCorn failed. Unable to reach the goal.")
+            return HookCornResponse(success="ERROR")
 
         self.state = "CORN_HOOK"
         return HookCornResponse(success="DONE")
@@ -612,44 +618,50 @@ class xArm_Motion():
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
         tf2_ros.TransformListener(tfBuffer)
 
-        # waypoints = []
-        # deg_res = -deg_res if -self.absolute_angle < 0 else deg_res
-        # radius = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
-        # for ang in np.arange(deg_res, -self.absolute_angle, deg_res):
-        #     pose_goal = self.move_group.get_current_pose().pose
-        #     x_curr = pose_goal.position.x
-        #     y_curr = pose_goal.position.y
+        waypoints = []
 
-        #     c_x = x_curr - (radius) * np.sin(np.radians(self.absolute_angle))
-        #     c_y = y_curr - (radius) * np.cos(np.radians(self.absolute_angle))
+        deg_res = -deg_res if -self.absolute_angle < 0 else deg_res
+        radius = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
+        rospy.logwarn("i've not entered")
+        rospy.logwarn("deg_res: " + str(deg_res))
+        rospy.logwarn("abs:" + str(self.absolute_angle))        
+        for ang in np.arange(deg_res, -self.absolute_angle, deg_res):
+            rospy.logwarn("ang" + str(ang))
+            rospy.logwarn("i enter")
+            pose_goal = self.move_group.get_current_pose().pose
+            x_curr = pose_goal.position.x
+            y_curr = pose_goal.position.y
 
-        #     # Determine the offset to move in x and y
-        #     x_pos = c_x + (radius) * np.sin(np.radians(ang + self.absolute_angle))
-        #     y_pos = c_y + (radius) * np.cos(np.radians(ang + self.absolute_angle))
-        #     del_x, del_y = (x_pos-x_curr), (y_pos-y_curr)
+            c_x = x_curr - (radius) * np.sin(np.radians(self.absolute_angle))
+            c_y = y_curr - (radius) * np.cos(np.radians(self.absolute_angle))
+
+            # Determine the offset to move in x and y
+            x_pos = c_x + (radius) * np.sin(np.radians(ang + self.absolute_angle))
+            y_pos = c_y + (radius) * np.cos(np.radians(ang + self.absolute_angle))
+            del_x, del_y = (x_pos-x_curr), (y_pos-y_curr)
             
-        #     # Update orientation
-        #     quaternion = (
-        #         pose_goal.orientation.x,
-        #         pose_goal.orientation.y,
-        #         pose_goal.orientation.z,
-        #         pose_goal.orientation.w 
-        #     )
-        #     euler = list(tf_conversions.transformations.euler_from_quaternion(quaternion))
-        #     euler[2] += np.deg2rad(-ang)
-        #     quaternion = tf_conversions.transformations.quaternion_from_euler(euler[0], euler[1], euler[2])
+            # Update orientation
+            quaternion = (
+                pose_goal.orientation.x,
+                pose_goal.orientation.y,
+                pose_goal.orientation.z,
+                pose_goal.orientation.w 
+            )
+            euler = list(tf_conversions.transformations.euler_from_quaternion(quaternion))
+            euler[2] += np.deg2rad(-ang)
+            quaternion = tf_conversions.transformations.quaternion_from_euler(euler[0], euler[1], euler[2])
             
-        #     pose_goal.position.x += del_x
-        #     pose_goal.position.y += del_y
-        #     pose_goal.orientation.x = quaternion[0]
-        #     pose_goal.orientation.y = quaternion[1]
-        #     pose_goal.orientation.z = quaternion[2]
-        #     pose_goal.orientation.w = quaternion[3]
+            pose_goal.position.x += del_x
+            pose_goal.position.y += del_y
+            pose_goal.orientation.x = quaternion[0]
+            pose_goal.orientation.y = quaternion[1]
+            pose_goal.orientation.z = quaternion[2]
+            pose_goal.orientation.w = quaternion[3]
 
-        #     waypoints.append(pose_goal)
+            waypoints.append(pose_goal)
 
-        # plan, _ = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
-        # self.move_group.execute(plan, wait=True)
+        plan, _ = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        self.move_group.execute(plan, wait=True)
 
         waypoints = []
         for pos in np.arange(-pos_res, -0.085, -pos_res):
