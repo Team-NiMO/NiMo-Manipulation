@@ -70,28 +70,6 @@ class xArm_Motion():
         self.scene.remove_world_object()
         frame = self.robot.get_planning_frame()
 
-        # ---------- For End-Effector Setup ----------
-        if self.gripper_collision:
-            p = geometry_msgs.msg.PoseStamped()
-            p.header.frame_id = "link_eef"
-            p.pose.position.z = 0.033 / 2
-            self.scene.add_box('ee_grip1', p, size=(0.076, 0.076, 0.033))
-
-            p.header.frame_id = "link_eef"
-            p.pose.position.z = 0.033 + 0.0752 / 2
-            p.pose.position.y = (0.076 - 0.021) / 2
-            self.scene.add_box('ee_grip2', p, size=(0.076, 0.021, 0.0752))
-
-            p.header.frame_id = "link_eef"
-            p.pose.position.z = 0.146 / 2 + 0.018
-            p.pose.position.y = (0.076 + 0.102) / 2
-            self.scene.add_box('ee_box', p, size=(0.076, 0.102, 0.146))
-
-            p.header.frame_id = "link_eef"
-            p.pose.position.z = 0.065 / 2 + 0.146 + 0.018
-            p.pose.position.y = 0.076 / 2 + 0.102 - 0.041 / 2
-            self.scene.add_box('ee_hook1', p, size=(0.076, 0.041, 0.065))
-
         # ---------- For Tabletop Setup ----------
         if self.base_collision == "tabletop":
             # Setup ground plane
@@ -109,7 +87,7 @@ class xArm_Motion():
             self.scene.add_plane("table", p)
         
         # ---------- For Amiga Setup ----------
-        if self.base_collision == "amiga":
+        elif self.base_collision == "amiga":
             # Setup ground plane
             p = geometry_msgs.msg.PoseStamped()
             p.header.frame_id = frame
@@ -132,31 +110,21 @@ class xArm_Motion():
             p.pose.position.z = 0.82/2
             self.scene.add_box('amigaWheelRight', p, size=(0.42, 0.26, 0.82))
 
-            '''
-            # Setup external mechanisms
+            # Setup parallel frame box (frame holding external mechanisms)
             p = geometry_msgs.msg.PoseStamped()
             p.header.frame_id = frame
-            p.pose.position.x = ...
-            p.pose.position.y = ...
-            p.pose.position.z = ...
-            self.scene.add_box('EM', p, size=(..., ..., ...))
-            self.scene.add_plane("EM", p)
-            '''
+            p.pose.position.x = -(0.4953 + 0.3048/2)
+            p.pose.position.y = 0
+            p.pose.position.z = 0.0635 / 2
+            self.scene.add_box('parFrame', p, size=(0.3048, 1.778, 0.0635))
 
-            # Setup height plane
+            # Setup perpendicular frame box (frame holding xArm6)
             p = geometry_msgs.msg.PoseStamped()
             p.header.frame_id = frame
-            #height from base_link to ground - height from rod to ground
-            p.pose.position.z = 0.838 - 0.82 
-            self.scene.add_plane("height", p)
-
-            # # Setup perpendicular frame box (frame holding xArm6)
-            # p = geometry_msgs.msg.PoseStamped()
-            # p.header.frame_id = frame
-            # p.pose.position.x = ...
-            # p.pose.position.y = ...
-            # p.pose.position.z = ...
-            # self.scene.add_box('end_effector', p, size=(..., ..., ...)) # FRAME DIMENSIONS
+            p.pose.position.x = -(1 / 2 - 0.18415)
+            p.pose.position.y = 0
+            p.pose.position.z = -0.0635 / 2
+            self.scene.add_box('perpFrame', p, size=(1, 0.3048, 0.0635))
 
         elif self.base_collision == "none":
             pass
@@ -178,7 +146,6 @@ class xArm_Motion():
         self.verbose = config["debug"]["verbose"]
         self.approach = config["gripper"]["approach"]
         self.ip_address = config["arm"]["ip_address"]
-        self.gripper_collision = config["collision"]["gripper"]
         self.base_collision = config["collision"]["base"]
 
     @classmethod 

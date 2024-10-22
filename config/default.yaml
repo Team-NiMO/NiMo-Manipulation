@@ -2,11 +2,10 @@ debug:
   verbose: True               # Whether to log information and warnings
 
 arm:
-  ip_address: '192.168.1.214' # The IP address of the controlbox for the xArm
+  ip_address: '192.168.1.196' # The IP address of the controlbox for the xArm
 
 gripper:
   approach: left             # Options: left, front
 
 collision:
-  gripper: True              # Whether the gripper has a collision box
-  base: tabletop             # Options: tabletop, amiga, none
+  base: amiga             # Options: tabletop, amiga, none
