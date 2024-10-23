@@ -454,44 +454,50 @@ class xArm_Motion():
         deg_res = 1.0 # Resolution in degrees
 
         waypoints = []
+        pose_goal = self.move_group.get_current_pose().pose
+        pose_goal.position = req.grasp_point
+
+        waypoints.append(pose_goal)
+
         for pos in np.arange(-pos_res, -0.085, -pos_res):
             pose_goal = self.move_group.get_current_pose().pose
-
-            pose_goal.position.x += pos
+            pose_goal.position.x = req.grasp_point.x + pos
             waypoints.append(copy.deepcopy(pose_goal))
 
-        plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
-        if fraction > 0.95:
-            success = self.move_group.execute(plan, wait=True)
-        else:
-            success = False
+        # plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        # if fraction > 0.95:
+        #     success = self.move_group.execute(plan, wait=True)
+        # else:
+        #     success = False
 
-        if not success:
-            rospy.logerr("GoCorn failed. Unable to reach the goal.")
-            return HookCornResponse(success="ERROR")
+        # if not success:
+        #     rospy.logerr("GoCorn failed. Unable to reach the goal.")
+        #     return HookCornResponse(success="ERROR")
 
-        waypoints = []
+        # waypoints = []
         for pos in np.arange(-pos_res, -0.12, -pos_res):
             pose_goal = self.move_group.get_current_pose().pose
 
-            pose_goal.position.y += pos
+            pose_goal.position.x = req.grasp_point.x - 0.085
+            pose_goal.position.y = req.grasp_point.y + pos
             waypoints.append(copy.deepcopy(pose_goal))
 
-        plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
-        if fraction > 0.95:
-            success = self.move_group.execute(plan, wait=True)
-        else:
-            success = False
+        # plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        # if fraction > 0.95:
+        #     success = self.move_group.execute(plan, wait=True)
+        # else:
+        #     success = False
 
-        if not success:
-            rospy.logerr("GoCorn failed. Unable to reach the goal.")
-            return HookCornResponse(success="ERROR")
+        # if not success:
+        #     rospy.logerr("GoCorn failed. Unable to reach the goal.")
+        #     return HookCornResponse(success="ERROR")
 
-        waypoints = []
+        # waypoints = []
         for pos in np.arange(pos_res, 0.085, pos_res):
             pose_goal = self.move_group.get_current_pose().pose
 
-            pose_goal.position.x += pos
+            pose_goal.position.x = req.grasp_point.x - 0.085 + pos
+            pose_goal.position.y = req.grasp_point.y - 0.12
             waypoints.append(copy.deepcopy(pose_goal))
 
         plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
