@@ -1,7 +1,7 @@
 <launch>
 
 <include file="$(find nimo_manipulation)/launch/realMove_exec.launch">
-    <arg name="show_rviz" value="false"/>
+    <arg name="show_rviz" value="true"/>
 </include>
 
 <node pkg="nimo_manipulation" name="nimo_manipulation" type="xArm_motion.py" output="screen"/>
