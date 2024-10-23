@@ -461,6 +461,8 @@ class xArm_Motion():
 
         for pos in np.arange(-pos_res, -0.085, -pos_res):
             pose_goal = self.move_group.get_current_pose().pose
+            pose_goal.position = req.grasp_point
+
             pose_goal.position.x = req.grasp_point.x + pos
             waypoints.append(copy.deepcopy(pose_goal))
 
@@ -477,6 +479,7 @@ class xArm_Motion():
         # waypoints = []
         for pos in np.arange(-pos_res, -0.12, -pos_res):
             pose_goal = self.move_group.get_current_pose().pose
+            pose_goal.position = req.grasp_point
 
             pose_goal.position.x = req.grasp_point.x - 0.085
             pose_goal.position.y = req.grasp_point.y + pos
@@ -495,6 +498,7 @@ class xArm_Motion():
         # waypoints = []
         for pos in np.arange(pos_res, 0.085, pos_res):
             pose_goal = self.move_group.get_current_pose().pose
+            pose_goal.position = req.grasp_point
 
             pose_goal.position.x = req.grasp_point.x - 0.085 + pos
             pose_goal.position.y = req.grasp_point.y - 0.12
