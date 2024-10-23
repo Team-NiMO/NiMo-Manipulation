@@ -865,5 +865,5 @@ class xArm_Motion():
 
 if __name__ == '__main__':
     rospy.init_node('nimo_manipulation')
-    detect_node = xArm_Motion('192.168.1.196')
+    detect_node = xArm_Motion('192.168.1.213')
     rospy.spin()
