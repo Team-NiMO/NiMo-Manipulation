@@ -848,16 +848,16 @@ class xArm_Motion():
                               - success - The success of the operation (DONE / ERROR)
         '''
 
-    vs_x = req.x_disp * cos(req.insert_angle)
-    vs_y = req.x_disp * sin(req.insert_angle)
-    code = self.arm.set_position_aa(axis_angle_pose=[vs_x, vs_y, 0, 0, 0, 0], speed=30, relative=True, wait=True)
-    cur_x = tfBuffer.lookup_transform('link_base', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.x
+        vs_x = req.x_disp * cos(req.insert_angle)
+        vs_y = req.x_disp * sin(req.insert_angle)
+        code = self.arm.set_position_aa(axis_angle_pose=[vs_x, vs_y, 0, 0, 0, 0], speed=30, relative=True, wait=True)
+        cur_x = tfBuffer.lookup_transform('link_base', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.x
 
-    if code != 0:
-        rospy.logerr("set_arm_position_aa returned error {}".format(code))
-        return MoveDispResponse(success="ERROR")
+        if code != 0:
+            rospy.logerr("set_arm_position_aa returned error {}".format(code))
+            return MoveDispResponse(success="ERROR")
 
-    return MoveDispResponse(x_position=cur_x, success="DONE")
+        return MoveDispResponse(x_position=cur_x, success="DONE")
     
 
 if __name__ == '__main__':
