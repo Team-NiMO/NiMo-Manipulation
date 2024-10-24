@@ -838,26 +838,28 @@ class xArm_Motion():
 
         Parameters:
             req (MoveDispRequest): The request:
-                                  - x_displacement - The displacement required to move to align
+                                  - x_disp - The displacement in the x_axis required to move to align
+                                  - y_disp - The displacement in the x_axis required to move to align
                                   - insert_angle - The optimal angle for sensor insertion
                                   
         
         Returns:
             MoveDispResponse: The response:
                               - x_position - the updated x_value of the cornstalk
+                              - y_position - the updated y_value of the cornstalk
                               - success - The success of the operation (DONE / ERROR)
         '''
 
-        vs_x = req.x_disp * cos(req.insert_angle)
-        vs_y = req.x_disp * sin(req.insert_angle)
-        code = self.arm.set_position_aa(axis_angle_pose=[vs_x, vs_y, 0, 0, 0, 0], speed=30, relative=True, wait=True)
-        cur_x = tfBuffer.lookup_transform('link_base', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.x
+        code = self.arm.set_position_aa(axis_angle_pose=[req.x_disp, req.y_disp, 0, 0, 0, 0], speed=30, relative=True, wait=True)
+        cur_pos = tfBuffer.lookup_transform('link_base', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
+        cur_x = cur_pos.x
+        cur_y = cur_pos.y
 
         if code != 0:
             rospy.logerr("set_arm_position_aa returned error {}".format(code))
             return MoveDispResponse(success="ERROR")
 
-        return MoveDispResponse(x_position=cur_x, success="DONE")
+        return MoveDispResponse(x_position=cur_x, y_position=cur_y, success="DONE")
     
 
 if __name__ == '__main__':
