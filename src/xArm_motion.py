@@ -850,9 +850,13 @@ class xArm_Motion():
                               - success - The success of the operation (DONE / ERROR)
         '''
 
-        code = self.arm.set_position_aa(axis_angle_pose=[req.x_disp, req.y_disp, 0, 0, 0, 0], speed=30, relative=True, wait=True)
+        code = self.arm.set_position_aa(axis_angle_pose=[req.x_disp * 1000, req.y_disp*1000, 0, 0, 0, 0], speed=30, relative=True, wait=True)
+        
+        tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
+        tf2_ros.TransformListener(tfBuffer)
         cur_pos = tfBuffer.lookup_transform('link_base', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
         cur_x = cur_pos.x
+        rospy.loginfo("current x value {}, the type {}".format(cur_x, type(cur_x)))
         cur_y = cur_pos.y
 
         if code != 0:
@@ -864,5 +868,5 @@ class xArm_Motion():
 
 if __name__ == '__main__':
     rospy.init_node('nimo_manipulation')
-    detect_node = xArm_Motion('192.168.1.213')
+    detect_node = xArm_Motion('192.168.1.196')
     rospy.spin()
