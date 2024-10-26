@@ -387,28 +387,28 @@ class xArm_Motion():
                 self.state = "RM0"
         
         elif self.state == "RM0":
-            code = self.arm.set_servo_angle(angle=[114.2, 57, -73.4, 113.5, 83.8, -164.8], speed=5, is_radian=False, wait=True)
+            code = self.arm.set_servo_angle(angle=[112.7, 54.3, -65.4, 112.5, 86.3, -169.6], speed=5, is_radian=False, wait=True)
             code = self.arm.set_servo_angle(angle=[107.1, 52.6, -63, 106.9, 87.4, -169.9], speed=30, is_radian=False, wait=True)
 
             if slot_val == 1:
                 code = self.arm.set_servo_angle(angle=[111.6, 47.6, -46.5, 111.5, 90.8, -180.8], speed=10, is_radian=False, wait=True)
-                code = self.arm.set_servo_angle(angle=[129.7, 48.6, -51, 129.6, 88.9, -177.9], speed=10, is_radian=False, wait=True)
-                # code = self.arm.set_servo_angle(angle=[132.4, 49.3, -53.5, 132.3, 87.6, -176.7], speed=5,  is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[125.3, 47.6, -46.5, 125.2, 91, -180.7], speed=10, is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[130.1, 48.4, -49.9, 130, 89.4, -178.7], speed=5,  is_radian=False, wait=True)
 
             elif slot_val == 2:
                 code = self.arm.set_servo_angle(angle=[111.6, 47.6, -46.5, 111.5, 90.8, -180.8], speed=10, is_radian=False, wait=True)
-                code = self.arm.set_servo_angle(angle=[127, 50.1, -55.7, 126.8, 87, -175.3], speed=10, is_radian=False, wait=True)
-                # code = self.arm.set_servo_angle(angle=[129.7, 50.9, -58.2, 129.4, 85.7, -174.1], speed=5,  is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[123.7, 48.8, -51.5, 123.6, 88.9, -177.6], speed=10, is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[127.2, 49.6, -54.1, 127, 87.7, -176.2], speed=5,  is_radian=False, wait=True)
 
             elif slot_val == 3:
-                code = self.arm.set_servo_angle(angle=[124.6, 51.9, -60.6, 124.4, 85.5, -172.6], speed=10, is_radian=False, wait=True)
-                # code = self.arm.set_servo_angle(angle=[127.3, 52.8, -63.2, 127, 84.1, -171.5], speed=5,  is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[122.4, 51.1, -57.6, 122.2, 86.9, -174.3], speed=10, is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[124.5, 51.7, -59.3, 124.3, 86.1, -173.5], speed=5,  is_radian=False, wait=True)
             elif slot_val == 4:
-                code = self.arm.set_servo_angle(angle=[122.7, 53.8, -66, 122.2, 83.9, -169.5], speed=10, is_radian=False, wait=True)
-                # code = self.arm.set_servo_angle(angle=[125, 54.7, -68.3, 124.4, 82.7, -168.6], speed=5,  is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[120.6, 53, -63.1, 120.3, 85.3, -171.1], speed=10, is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[122.3, 53.5, -64.5, 121.9, 84.6, -170.5], speed=5,  is_radian=False, wait=True)
             elif slot_val == 5:
-                code = self.arm.set_servo_angle(angle=[120.2, 56.2, -71.5, 119.4, 82.8, -166.6], speed=10, is_radian=False, wait=True)
-                # code = self.arm.set_servo_angle(angle=[123.1, 57.4, -74.5, 122, 81.2, -165.5], speed=5,  is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[119.4, 55.4, -69.3, 118.7, 83.7, -167.8], speed=10, is_radian=False, wait=True)
+                code = self.arm.set_servo_angle(angle=[120.4, 55.8, -70.2, 119.7, 83.2, -167.4], speed=5,  is_radian=False, wait=True)
 
             self.state = "RM"
         
