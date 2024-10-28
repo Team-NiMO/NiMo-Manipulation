@@ -38,7 +38,7 @@ class xArm_Motion():
         self.get_xArm_service = rospy.Service('UnhookCorn', UnhookCorn, self.UnhookCorn)
 
         # Internal variables
-        self.state = "STOW"
+        self.state = "HOME"
         # Angle of xArm relative to the cornstalk
         self.absolute_angle = 0 
 
@@ -81,11 +81,26 @@ class xArm_Motion():
             # Setup table plane
             p = geometry_msgs.msg.PoseStamped()
             p.header.frame_id = frame
-            p.pose.position.x = -0.38
+            p.pose.position.x = -0.6
             p.pose.orientation.y = -np.sqrt(2) / 2.0
             p.pose.orientation.w = np.sqrt(2) / 2.0
             self.scene.add_plane("table", p)
         
+        elif self.base_collision == "janice_tabletop":
+            # Setup ground plane
+            p = geometry_msgs.msg.PoseStamped()
+            p.header.frame_id = frame
+            p.pose.position.z = 0.9
+            self.scene.add_plane("ground", p)
+
+            # Setup table plane
+            p = geometry_msgs.msg.PoseStamped()
+            p.header.frame_id = frame
+            p.pose.position.x = -0.5
+            p.pose.orientation.y = -np.sqrt(2) / 2.0
+            p.pose.orientation.w = np.sqrt(2) / 2.0
+            self.scene.add_plane("table", p)
+
         # ---------- For Amiga Setup ----------
         elif self.base_collision == "amiga":
             # Setup ground plane
@@ -410,6 +425,9 @@ class xArm_Motion():
         tf2_ros.TransformListener(tfBuffer)
         delta = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
 
+        # TEST WITH KNOWN FAILURE CASE
+        # INTERMEIDATE POSE W/ GOOD JOINT CONFIGURATION AT X=0
+
         # get the current orientation of the end effector
         self.pose_goal.orientation = self.robot.get_link('link_eef').pose().pose.orientation
 
@@ -507,16 +525,22 @@ class xArm_Motion():
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
         tf2_ros.TransformListener(tfBuffer)
 
+        pose = self.move_group.get_current_pose().pose
+        quaternion = (
+            pose.orientation.x,
+            pose.orientation.y,
+            pose.orientation.z,
+            pose.orientation.w 
+        )
+        euler = list(tf_conversions.transformations.euler_from_quaternion(quaternion))
+        init = -np.rad2deg(euler[2])
+
         waypoints = []
+        req.insert_angle += (-1) ** (1 + int(-req.insert_angle < 0)) if req.insert_angle != 0 else 0 # -1 if negative, 1 if positive, 0 if 0
         self.absolute_angle = req.insert_angle
         deg_res = -deg_res if -self.absolute_angle > 0 else deg_res
         radius = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
-        rospy.logwarn("i no enter")
-        rospy.logwarn("deg_res:" + str(deg_res))
-        rospy.logwarn("absolute_angle:" + str(self.absolute_angle))
-        for ang in np.arange(deg_res, self.absolute_angle, deg_res):
-        
-            rospy.logwarn("i've entered")
+        for ang in np.arange(init, self.absolute_angle, deg_res):
             pose_goal = self.move_group.get_current_pose().pose
             x_curr = pose_goal.position.x
             y_curr = pose_goal.position.y
@@ -549,14 +573,24 @@ class xArm_Motion():
 
             waypoints.append(pose_goal)
 
-        plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
-        rospy.logwarn("frac  = %.2f" % fraction)
+        self.hook_waypoints = waypoints
+        plan, fraction = self.move_group.compute_cartesian_path(waypoints[1:], 0.01, jump_threshold=5)
         if fraction > 0.95:
             success = self.move_group.execute(plan, wait=True)
         else:
             success = False
 
-        if not success:
+        pose = self.move_group.get_current_pose().pose
+        quaternion = (
+            pose.orientation.x,
+            pose.orientation.y,
+            pose.orientation.z,
+            pose.orientation.w 
+        )
+        euler = list(tf_conversions.transformations.euler_from_quaternion(quaternion))
+        self.absolute_angle = -np.rad2deg(euler[2])
+
+        if not success and req.insert_angle != 0:
             rospy.logerr("ARC GoCorn failed. Unable to reach the goal.")
             return HookCornResponse(success="ERROR")
 
@@ -585,50 +619,19 @@ class xArm_Motion():
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
         tf2_ros.TransformListener(tfBuffer)
 
-        waypoints = []
-
-        deg_res = -deg_res if -self.absolute_angle < 0 else deg_res
-        radius = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
-        rospy.logwarn("i've not entered")
-        rospy.logwarn("deg_res: " + str(deg_res))
-        rospy.logwarn("abs:" + str(self.absolute_angle))        
-        for ang in np.arange(deg_res, -self.absolute_angle, deg_res):
-            rospy.logwarn("ang" + str(ang))
-            rospy.logwarn("i enter")
-            pose_goal = self.move_group.get_current_pose().pose
-            x_curr = pose_goal.position.x
-            y_curr = pose_goal.position.y
-
-            c_x = x_curr - (radius) * np.sin(np.radians(self.absolute_angle))
-            c_y = y_curr - (radius) * np.cos(np.radians(self.absolute_angle))
-
-            # Determine the offset to move in x and y
-            x_pos = c_x + (radius) * np.sin(np.radians(ang + self.absolute_angle))
-            y_pos = c_y + (radius) * np.cos(np.radians(ang + self.absolute_angle))
-            del_x, del_y = (x_pos-x_curr), (y_pos-y_curr)
-            
-            # Update orientation
-            quaternion = (
-                pose_goal.orientation.x,
-                pose_goal.orientation.y,
-                pose_goal.orientation.z,
-                pose_goal.orientation.w 
-            )
-            euler = list(tf_conversions.transformations.euler_from_quaternion(quaternion))
-            euler[2] += np.deg2rad(-ang)
-            quaternion = tf_conversions.transformations.quaternion_from_euler(euler[0], euler[1], euler[2])
-            
-            pose_goal.position.x += del_x
-            pose_goal.position.y += del_y
-            pose_goal.orientation.x = quaternion[0]
-            pose_goal.orientation.y = quaternion[1]
-            pose_goal.orientation.z = quaternion[2]
-            pose_goal.orientation.w = quaternion[3]
-
-            waypoints.append(pose_goal)
-
-        plan, _ = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        self.hook_waypoints.reverse()
+        plan, _ = self.move_group.compute_cartesian_path(self.hook_waypoints[1:], 0.01, jump_threshold=5)
         self.move_group.execute(plan, wait=True)
+
+        pose = self.move_group.get_current_pose().pose
+        quaternion = (
+            pose.orientation.x,
+            pose.orientation.y,
+            pose.orientation.z,
+            pose.orientation.w 
+        )
+        euler = list(tf_conversions.transformations.euler_from_quaternion(quaternion))
+        self.absolute_angle = -np.rad2deg(euler[2])
 
         waypoints = []
         for pos in np.arange(-pos_res, -0.085, -pos_res):
@@ -686,9 +689,10 @@ class xArm_Motion():
 
     @classmethod
     def ArcCorn(self, req: ArcCornRequest) -> ArcCornResponse:
-        if self.state != "CORN_OFFSET" and self.state!="CORN_HOOK":
-            rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_OFFSET"))
-            return ArcCornResponse(success="ERROR")
+        # if self.state != "CORN_OFFSET" and self.state!="CORN_HOOK":
+        #     rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_OFFSET"))
+        #     return ArcCornResponse(success="ERROR")
+        
 
         if self.verbose: rospy.loginfo("Performing the arc motion")
         

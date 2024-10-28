@@ -1,6 +1,6 @@
 <launch>
 
-  <arg name="robot_ip" default="192.168.1.196" />
+  <arg name="robot_ip" default="192.168.1.214" />
   <arg name="report_type" default="normal" />	
   <!-- load the default move_group planner (not xarm_simple_planner) -->
   <arg name="show_rviz" default="false" />
