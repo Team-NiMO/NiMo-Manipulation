@@ -106,7 +106,7 @@ class xArm_Motion():
             # Setup ground plane
             p = geometry_msgs.msg.PoseStamped()
             p.header.frame_id = frame
-            p.pose.position.z = 0.838
+            p.pose.position.z = 0.82
             self.scene.add_plane("ground", p)
 
             # Setup amiga's driver wheel 
@@ -214,8 +214,8 @@ class xArm_Motion():
             return GoHomeResponse(success="ERROR")
         elif self.state in ["clean", "cal_low", "cal_high"]:
             self.GoEMPlane()
-        elif self.state == "LookatCorn":
-            self.arm.set_position_aa(axis_angle_pose=[0, -221.5, 0, 6.6, 0, 0], speed=30, relative=True, wait=True)
+        # elif self.state == "LookatCorn":
+        #     self.arm.set_position_aa(axis_angle_pose=[0, -221.5, 0, 6.6, 0, 0], speed=30, relative=True, wait=True)
 
         if self.verbose: rospy.loginfo('Going to Home Position')
 
@@ -441,6 +441,13 @@ class xArm_Motion():
         self.pose_goal.position.y = req.grasp_point.y + delta.z + 0.12
         self.pose_goal.position.z = req.grasp_point.z - delta.y
         self.move_group.set_pose_target(self.pose_goal)
+
+        if req.grasp_point.x <= 0.2:
+            joint_goal = np.deg2rad([-4.7, -110, -48, -85.6, 88.2, -68])
+            self.move_group.set_joint_value_target(joint_goal)
+            success = self.move_group.go(joint_goal, wait=True)
+            self.move_group.stop()
+            self.move_group.clear_pose_targets()
     
         success = self.move_group.go(self.pose_goal, wait=True)
         self.move_group.stop()
@@ -674,22 +681,22 @@ class xArm_Motion():
             rospy.logerr("GoCorn failed. Unable to reach the goal.")
             return UnhookCornResponse(success="ERROR")
 
-        waypoints = []
-        for pos in np.arange(pos_res, 0.085, pos_res):
-            pose_goal = self.move_group.get_current_pose().pose
+        # waypoints = []
+        # for pos in np.arange(pos_res, 0.085, pos_res):
+        #     pose_goal = self.move_group.get_current_pose().pose
 
-            pose_goal.position.x += pos
-            waypoints.append(copy.deepcopy(pose_goal))
+        #     pose_goal.position.x += pos
+        #     waypoints.append(copy.deepcopy(pose_goal))
 
-        plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
-        if fraction > 0.95:
-            success = self.move_group.execute(plan, wait=True)
-        else:
-            success = False
+        # plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        # if fraction > 0.95:
+        #     success = self.move_group.execute(plan, wait=True)
+        # else:
+        #     success = False
 
-        if not success:
-            rospy.logerr("GoCorn failed. Unable to reach the goal.")
-            return UnhookCornResponse(success="ERROR")
+        # if not success:
+        #     rospy.logerr("GoCorn failed. Unable to reach the goal.")
+        #     return UnhookCornResponse(success="ERROR")
 
         self.state = "CORN_OFFSET"
         return UnhookCornResponse(success="DONE")
