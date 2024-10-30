@@ -193,6 +193,7 @@ class xArm_Motion():
 
         if not success:
             rospy.logerr("GoStow failed. Unable to reach the goal.") 
+            return GoStowResponse(success="ERROR")
 
         self.state = "STOW"
 
@@ -229,6 +230,7 @@ class xArm_Motion():
 
         if not success:
             rospy.logerr("GoHome failed. Unable to reach the goal.") 
+            return GoHomeResponse(success="ERROR")
 
 
         self.state = "HOME"
@@ -296,6 +298,7 @@ class xArm_Motion():
 
         if not success:
             rospy.logerr("LookatAngle failed. Unable to reach the goal.") 
+            return LookatAngleResponse(success="ERROR")
 
         self.state = "LookatAngle"
 
@@ -360,6 +363,7 @@ class xArm_Motion():
                 self.move_group.clear_pose_targets()
                 if not success:
                     rospy.logerr("GoEm {req.id} failed. Unable to reach the goal.")
+                    return GoEMResponse(success="ERROR")
 
             # Joint angles corresponding to end-effector at the cleaning nozzle
             joint_goal = np.deg2rad([-125.1, 85, -74.8, 55.2, -96.5, -87.3])
@@ -382,6 +386,7 @@ class xArm_Motion():
                 self.move_group.clear_pose_targets()
                 if not success:
                     rospy.logerr("GoEm {req.id} failed. Unable to reach the goal.")
+                    return GoEMResponse(success="ERROR")
             
             # Joint angles corresponding to end-effector at the high calibration nozzle
             joint_goal = np.deg2rad([-108.7, 110.3, -149.4, 73, -76.8, -129.8])
@@ -393,6 +398,7 @@ class xArm_Motion():
 
         if not success:
             rospy.logerr("GoEm {req.id} failed. Unable to reach the goal.")
+            return GoEMResponse(success="ERROR")
         
         self.state = req.id
         return GoEMResponse(success="DONE")
@@ -442,6 +448,7 @@ class xArm_Motion():
 
         if not success:
             rospy.logerr("GoCorn failed. Unable to reach the goal.")
+            return GoCornResponse(success="ERROR")
 
         self.state = "CORN_OFFSET"
         return GoCornResponse(success="DONE")
