@@ -436,7 +436,7 @@ class xArm_Motion():
         self.pose_goal.position.z = req.grasp_point.z - delta.y
         self.move_group.set_pose_target(self.pose_goal)
 
-        if req.grasp_point.x <= 0.2:
+        if req.grasp_point.x <= -0.2:
             self.intermediate_pose = np.deg2rad([-4.7, -110, -48, -85.6, 88.2, -68])
             self.move_group.set_joint_value_target(self.intermediate_pose)
             success = self.move_group.go(self.intermediate_pose, wait=True)
