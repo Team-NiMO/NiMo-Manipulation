@@ -38,10 +38,9 @@ class xArm_Motion():
         self.get_xArm_service = rospy.Service('UnhookCorn', UnhookCorn, self.UnhookCorn)
 
         # Internal variables
-        self.state = "HOME"
-        self.intermediate_pose = None
-        # Angle of xArm relative to the cornstalk
-        self.absolute_angle = 0 
+        self.state = "STOW" # The state of the xArm to restrict invalid movements
+        self.intermediate_pose = None # Intermediate pose needed to get to cornstalk
+        self.absolute_angle = 0 # Angle of xArm relative to the cornstalk
 
         self.broadcaster = tf2_ros.StaticTransformBroadcaster()
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
@@ -71,7 +70,6 @@ class xArm_Motion():
         self.scene.remove_world_object()
         frame = self.robot.get_planning_frame()
 
-        # ---------- For Tabletop Setup ----------
         if self.base_collision == "tabletop":
             # Setup ground plane
             p = geometry_msgs.msg.PoseStamped()
@@ -102,7 +100,6 @@ class xArm_Motion():
             p.pose.orientation.w = np.sqrt(2) / 2.0
             self.scene.add_plane("table", p)
 
-        # ---------- For Amiga Setup ----------
         elif self.base_collision == "amiga":
             # Setup ground plane
             p = geometry_msgs.msg.PoseStamped()
@@ -160,7 +157,6 @@ class xArm_Motion():
             config = yaml.load(file, Loader=yaml.FullLoader)
 
         self.verbose = config["debug"]["verbose"]
-        self.approach = config["gripper"]["approach"]
         self.ip_address = config["arm"]["ip_address"]
         self.base_collision = config["collision"]["base"]
 
@@ -172,10 +168,6 @@ class xArm_Motion():
         Returns:
             GoStowResponse: The response:
                            - success - The success of the operation (DONE / ERROR)
-        '''
-
-        '''
-            #TODO: Figure out what to do to make GoStow work
         '''
         if self.state != "HOME" and self.state != "STOW":
             rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "STOW"))
@@ -200,7 +192,7 @@ class xArm_Motion():
 
         return GoStowResponse(success="DONE")
 
-    @classmethod 
+    @classmethod
     def GoHome(self, req: GoHomeRequest) -> GoHomeResponse:
         '''
         Move the xArm to the home position
@@ -210,12 +202,15 @@ class xArm_Motion():
                            - success - The success of the operation (DONE / ERROR)
         '''
 
-        if self.state == "CORN_HOOK" '''or self.state == "CORN_OFFSET"''':
+        if self.state == "CORN_HOOK":
             rospy.logerr("Invalid Command: Cannot move from {} to {} via GoHome".format(self.state, "HOME"))
             return GoHomeResponse(success="ERROR")
         elif self.state in ["clean", "cal_low", "cal_high"]:
-            self.GoEMPlane()
-        
+            if self.GoEMPlane() == "ERROR":
+                return GoEMResponse(success="ERROR")
+
+        if self.verbose: rospy.loginfo('Going to Home Position')
+
         if self.intermediate_pose is not None:
             self.move_group.set_joint_value_target(self.intermediate_pose)
             success = self.move_group.go(self.intermediate_pose, wait=True)
@@ -223,8 +218,6 @@ class xArm_Motion():
             self.move_group.clear_pose_targets()
 
             self.intermediate_pose = None
-
-        if self.verbose: rospy.loginfo('Going to Home Position')
 
         joint_goal = self.move_group.get_current_joint_values()
         joint_goal = np.deg2rad([0, -90, 0, -90, 90, 0])
@@ -239,8 +232,8 @@ class xArm_Motion():
             rospy.logerr("GoHome failed. Unable to reach the goal.") 
             return GoHomeResponse(success="ERROR")
 
-
         self.state = "HOME"
+        self.absolute_angle = 0
 
         return GoHomeResponse(success="DONE")
     
@@ -257,8 +250,6 @@ class xArm_Motion():
         if self.state != "HOME":
             rospy.logerr("Invalid Command: Cannot move from {} to LookatCorn".format(self.state))
             return LookatCornResponse(success="ERROR")
-        elif self.state in ["clean", "cal_low", "cal_high"]:
-            self.GoEMPlane()     
 
         if self.verbose: rospy.loginfo('Going to LookatCorn Position')
 
@@ -270,6 +261,10 @@ class xArm_Motion():
 
         self.move_group.stop()
         self.move_group.clear_pose_targets()
+
+        if not success:
+            rospy.logerr("LookatCorn failed. Unable to reach the goal.") 
+            return LookatCornResponse(success="ERROR")
 
         self.state = "LookatCorn"
 
@@ -288,8 +283,6 @@ class xArm_Motion():
         if self.state != "LookatCorn" and self.state != "LookatAngle":
             rospy.logerr("Invalid Command: Cannot move from {} to LookatAngle".format(self.state))
             return LookatAngleResponse(success="ERROR")
-        elif self.state in ["clean", "cal_low", "cal_high"]:
-            self.GoEMPlane()
 
         if self.verbose: rospy.loginfo('Going to LookatAngle Position')
         
@@ -311,16 +304,12 @@ class xArm_Motion():
 
         return LookatAngleResponse(success="DONE")
 
-
     @classmethod
     def GoEMPlane(self):
         '''
         Move the xArm to the external mechanisms plane
         '''
-        
-        '''
-            TODO: Do we need this function anymore?
-        '''
+
         if self.verbose: rospy.loginfo('Going to External Mechanisms Plane')
 
         joint_goal = self.move_group.get_current_joint_values()
@@ -331,6 +320,12 @@ class xArm_Motion():
 
         self.move_group.stop()
         self.move_group.clear_pose_targets()
+
+        if not success:
+            rospy.logerr("GoEMPlane failed. Unable to reach the goal.") 
+            return "ERROR"
+        else:
+            return "SUCCESS"
 
     @classmethod
     def GoEM(self, req: GoEMRequest) -> GoEMResponse:
@@ -351,12 +346,11 @@ class xArm_Motion():
             return GoEMResponse(success="ERROR")
 
         if self.state == "HOME":
-            self.GoEMPlane()
+            if self.GoEMPlane() == "ERROR":
+                return GoEMResponse(success="ERROR")
         elif self.state not in ["clean", "cal_low", "cal_high"]:
             rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "EM"))
             return GoEMResponse(success="ERROR")
-        
-        joint_goal = self.move_group.get_current_joint_values()
 
         if req.id == "clean":
             if self.verbose: rospy.loginfo("Going to Cleaning Nozzle")
@@ -369,7 +363,7 @@ class xArm_Motion():
                 self.move_group.stop()
                 self.move_group.clear_pose_targets()
                 if not success:
-                    rospy.logerr("GoEm {req.id} failed. Unable to reach the goal.")
+                    rospy.logerr("GoEM {req.id} failed. Unable to reach the goal.")
                     return GoEMResponse(success="ERROR")
 
             # Joint angles corresponding to end-effector at the cleaning nozzle
@@ -392,7 +386,7 @@ class xArm_Motion():
                 self.move_group.stop()
                 self.move_group.clear_pose_targets()
                 if not success:
-                    rospy.logerr("GoEm {req.id} failed. Unable to reach the goal.")
+                    rospy.logerr("GoEM {req.id} failed. Unable to reach the goal.")
                     return GoEMResponse(success="ERROR")
             
             # Joint angles corresponding to end-effector at the high calibration nozzle
@@ -404,7 +398,7 @@ class xArm_Motion():
         self.move_group.clear_pose_targets()
 
         if not success:
-            rospy.logerr("GoEm {req.id} failed. Unable to reach the goal.")
+            rospy.logerr("GoEM {req.id} failed. Unable to reach the goal.")
             return GoEMResponse(success="ERROR")
         
         self.state = req.id
@@ -429,17 +423,10 @@ class xArm_Motion():
             return GoCornResponse(success="ERROR")
 
         if self.verbose: rospy.loginfo("Going to the cornstalk {}, {}, {}".format(req.grasp_point.x, req.grasp_point.y, req.grasp_point.z)) 
-        self.move_group.clear_pose_targets()
-
-        # Reset the absolute angle to the cornstalk
-        self.absolute_angle = 0
 
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
         tf2_ros.TransformListener(tfBuffer)
         delta = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation
-
-        # TEST WITH KNOWN FAILURE CASE
-        # INTERMEIDATE POSE W/ GOOD JOINT CONFIGURATION AT X=0
 
         # get the current orientation of the end effector
         self.pose_goal.orientation = self.robot.get_link('link_eef').pose().pose.orientation
@@ -455,6 +442,12 @@ class xArm_Motion():
             success = self.move_group.go(self.intermediate_pose, wait=True)
             self.move_group.stop()
             self.move_group.clear_pose_targets()
+
+            if not success:
+                rospy.logerr("GoCorn failed. Unable to reach the goal.")
+                return GoCornResponse(success="ERROR")
+            
+            self.state = "CORN_OFFSET"
     
         success = self.move_group.go(self.pose_goal, wait=True)
         self.move_group.stop()
@@ -499,15 +492,7 @@ class xArm_Motion():
             pose_goal.position.x += pos
             waypoints.append(copy.deepcopy(pose_goal))
 
-        plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
-        if fraction > 0.95:
-            success = self.move_group.execute(plan, wait=True)
-        else:
-            success = False
-
-        if not success:
-            rospy.logerr("GoCorn failed. Unable to reach the goal.")
-            return HookCornResponse(success="ERROR")
+        plan_x1, fraction_x1 = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
 
         waypoints = []
         for pos in np.arange(-pos_res, -0.12, -pos_res):
@@ -516,15 +501,7 @@ class xArm_Motion():
             pose_goal.position.y += pos
             waypoints.append(copy.deepcopy(pose_goal))
 
-        plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
-        if fraction > 0.95:
-            success = self.move_group.execute(plan, wait=True)
-        else:
-            success = False
-
-        if not success:
-            rospy.logerr("GoCorn failed. Unable to reach the goal.")
-            return HookCornResponse(success="ERROR")
+        plan_y1, fraction_y1 = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
 
         waypoints = []
         for pos in np.arange(pos_res, 0.085, pos_res):
@@ -533,15 +510,7 @@ class xArm_Motion():
             pose_goal.position.x += pos
             waypoints.append(copy.deepcopy(pose_goal))
 
-        plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
-        if fraction > 0.95:
-            success = self.move_group.execute(plan, wait=True)
-        else:
-            success = False
-
-        if not success:
-            rospy.logerr("GoCorn failed. Unable to reach the goal.")
-            return HookCornResponse(success="ERROR")
+        plan_x2, fraction_x2 = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
 
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
         tf2_ros.TransformListener(tfBuffer)
@@ -595,11 +564,31 @@ class xArm_Motion():
             waypoints.append(pose_goal)
 
         self.hook_waypoints = waypoints
-        plan, fraction = self.move_group.compute_cartesian_path(waypoints[1:], 0.01, jump_threshold=5)
-        if fraction > 0.95:
-            success = self.move_group.execute(plan, wait=True)
+        plan_rot, fraction_rot = self.move_group.compute_cartesian_path(waypoints[1:], 0.01, jump_threshold=5)
+
+        if min([fraction_x1, fraction_y1, fraction_x2, fraction_rot]) > 0.95:
+            success = self.move_group.execute(plan_x1, wait=True)
+            if not success:
+                rospy.logerr("HookCorn failed. Unable to reach the goal.")
+                return HookCornResponse(success="ERROR")
+            
+            success = self.move_group.execute(plan_y1, wait=True)
+            if not success:
+                rospy.logerr("HookCorn failed. Unable to reach the goal.")
+                return HookCornResponse(success="ERROR")
+            
+            success = self.move_group.execute(plan_x2, wait=True)
+            if not success:
+                rospy.logerr("HookCorn failed. Unable to reach the goal.")
+                return HookCornResponse(success="ERROR")
+            
+            success = self.move_group.execute(plan_rot, wait=True)
+            if not success:
+                rospy.logerr("HookCorn failed. Unable to reach the goal.")
+                return HookCornResponse(success="ERROR")
         else:
-            success = False
+            rospy.logerr("HookCorn failed. Unable to reach the goal.")
+            return HookCornResponse(success="ERROR")
 
         pose = self.move_group.get_current_pose().pose
         quaternion = (
@@ -610,10 +599,6 @@ class xArm_Motion():
         )
         euler = list(tf_conversions.transformations.euler_from_quaternion(quaternion))
         self.absolute_angle = -np.rad2deg(euler[2])
-
-        if not success and req.insert_angle != 0:
-            rospy.logerr("ARC GoCorn failed. Unable to reach the goal.")
-            return HookCornResponse(success="ERROR")
 
         self.state = "CORN_HOOK"
         return HookCornResponse(success="DONE")
@@ -641,8 +626,7 @@ class xArm_Motion():
         tf2_ros.TransformListener(tfBuffer)
 
         self.hook_waypoints.reverse()
-        plan, _ = self.move_group.compute_cartesian_path(self.hook_waypoints[1:], 0.01, jump_threshold=5)
-        self.move_group.execute(plan, wait=True)
+        plan_rot, fraction_rot = self.move_group.compute_cartesian_path(self.hook_waypoints[1:], 0.01, jump_threshold=5)
 
         pose = self.move_group.get_current_pose().pose
         quaternion = (
@@ -661,15 +645,7 @@ class xArm_Motion():
             pose_goal.position.x += pos
             waypoints.append(copy.deepcopy(pose_goal))
 
-        plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
-        if fraction > 0.95:
-            success = self.move_group.execute(plan, wait=True)
-        else:
-            success = False
-
-        if not success:
-            rospy.logerr("GoCorn failed. Unable to reach the goal.")
-            return UnhookCornResponse(success="ERROR")
+        plan_x2, fraction_x2 = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
 
         waypoints = []
         for pos in np.arange(pos_res, 0.12, pos_res):
@@ -678,43 +654,36 @@ class xArm_Motion():
             pose_goal.position.y += pos
             waypoints.append(copy.deepcopy(pose_goal))
 
-        plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
-        if fraction > 0.95:
-            success = self.move_group.execute(plan, wait=True)
+        plan_y1, fraction_y1 = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+
+        if min([fraction_y1, fraction_x2, fraction_rot]) > 0.95:
+            success = self.move_group.execute(plan_rot, wait=True)
+            if not success:
+                rospy.logerr("HookCorn failed. Unable to reach the goal.")
+                return HookCornResponse(success="ERROR")
+            
+            success = self.move_group.execute(plan_x2, wait=True)
+            if not success:
+                rospy.logerr("HookCorn failed. Unable to reach the goal.")
+                return HookCornResponse(success="ERROR")
+            
+            success = self.move_group.execute(plan_y1, wait=True)
+            if not success:
+                rospy.logerr("HookCorn failed. Unable to reach the goal.")
+                return HookCornResponse(success="ERROR")
         else:
-            success = False
-
-        if not success:
-            rospy.logerr("GoCorn failed. Unable to reach the goal.")
-            return UnhookCornResponse(success="ERROR")
-
-        # waypoints = []
-        # for pos in np.arange(pos_res, 0.085, pos_res):
-        #     pose_goal = self.move_group.get_current_pose().pose
-
-        #     pose_goal.position.x += pos
-        #     waypoints.append(copy.deepcopy(pose_goal))
-
-        # plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
-        # if fraction > 0.95:
-        #     success = self.move_group.execute(plan, wait=True)
-        # else:
-        #     success = False
-
-        # if not success:
-        #     rospy.logerr("GoCorn failed. Unable to reach the goal.")
-        #     return UnhookCornResponse(success="ERROR")
+            rospy.logerr("HookCorn failed. Unable to reach the goal.")
+            return HookCornResponse(success="ERROR")
 
         self.state = "CORN_OFFSET"
         return UnhookCornResponse(success="DONE")
 
     @classmethod
     def ArcCorn(self, req: ArcCornRequest) -> ArcCornResponse:
-        # if self.state != "CORN_OFFSET" and self.state!="CORN_HOOK":
-        #     rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_OFFSET"))
-        #     return ArcCornResponse(success="ERROR")
+        if self.state != "CORN_OFFSET":
+            rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_OFFSET"))
+            return ArcCornResponse(success="ERROR")
         
-
         if self.verbose: rospy.loginfo("Performing the arc motion")
         
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
@@ -764,7 +733,11 @@ class xArm_Motion():
             waypoints.append(pose_goal)
 
         plan, _ = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
-        self.move_group.execute(plan, wait=True)
+        success = self.move_group.execute(plan, wait=True)
+
+        if not success:
+                rospy.logerr("ArcCorn failed. Unable to reach the goal.")
+                return ArcCornResponse(success="ERROR")
 
         pose = self.move_group.get_current_pose().pose
         quaternion = (
