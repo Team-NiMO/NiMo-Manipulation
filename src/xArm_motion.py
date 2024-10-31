@@ -497,6 +497,7 @@ class xArm_Motion():
         waypoints = []
         for pos in np.arange(-pos_res, -0.12, -pos_res):
             pose_goal = self.move_group.get_current_pose().pose
+            pose_goal.x += -0.085
 
             pose_goal.position.y += pos
             waypoints.append(copy.deepcopy(pose_goal))
@@ -506,6 +507,8 @@ class xArm_Motion():
         waypoints = []
         for pos in np.arange(pos_res, 0.085, pos_res):
             pose_goal = self.move_group.get_current_pose().pose
+            pose_goal.x += -0.085
+            pose_goal.y += -0.12
 
             pose_goal.position.x += pos
             waypoints.append(copy.deepcopy(pose_goal))
@@ -533,7 +536,7 @@ class xArm_Motion():
         for ang in np.arange(init, self.absolute_angle, deg_res):
             pose_goal = self.move_group.get_current_pose().pose
             x_curr = pose_goal.position.x
-            y_curr = pose_goal.position.y
+            y_curr = pose_goal.position.y + -0.12
 
             c_x = x_curr - (radius) * np.sin(np.radians(self.absolute_angle))
             c_y = y_curr - (radius) * np.cos(np.radians(self.absolute_angle))
