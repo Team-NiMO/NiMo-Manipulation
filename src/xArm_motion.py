@@ -492,28 +492,46 @@ class xArm_Motion():
             pose_goal.position.x += pos
             waypoints.append(copy.deepcopy(pose_goal))
 
-        plan_x1, fraction_x1 = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        if fraction > 0.95:
+            success = self.move_group.execute(plan, wait=True)
+        else:
+            success = False
+        if not success:
+            rospy.logerr("HookCorn failed. Unable to reach the goal.")
+            return HookCornResponse(success="ERROR")
 
         waypoints = []
         for pos in np.arange(-pos_res, -0.12, -pos_res):
             pose_goal = self.move_group.get_current_pose().pose
-            pose_goal.x += -0.085
 
             pose_goal.position.y += pos
             waypoints.append(copy.deepcopy(pose_goal))
 
-        plan_y1, fraction_y1 = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        if fraction > 0.95:
+            success = self.move_group.execute(plan, wait=True)
+        else:
+            success = False
+        if not success:
+            rospy.logerr("HookCorn failed. Unable to reach the goal.")
+            return HookCornResponse(success="ERROR")
 
         waypoints = []
         for pos in np.arange(pos_res, 0.085, pos_res):
             pose_goal = self.move_group.get_current_pose().pose
-            pose_goal.x += -0.085
-            pose_goal.y += -0.12
 
             pose_goal.position.x += pos
             waypoints.append(copy.deepcopy(pose_goal))
 
-        plan_x2, fraction_x2 = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        if fraction > 0.95:
+            success = self.move_group.execute(plan, wait=True)
+        else:
+            success = False
+        if not success:
+            rospy.logerr("HookCorn failed. Unable to reach the goal.")
+            return HookCornResponse(success="ERROR")
 
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
         tf2_ros.TransformListener(tfBuffer)
@@ -536,7 +554,7 @@ class xArm_Motion():
         for ang in np.arange(init, self.absolute_angle, deg_res):
             pose_goal = self.move_group.get_current_pose().pose
             x_curr = pose_goal.position.x
-            y_curr = pose_goal.position.y + -0.12
+            y_curr = pose_goal.position.y
 
             c_x = x_curr - (radius) * np.sin(np.radians(self.absolute_angle))
             c_y = y_curr - (radius) * np.cos(np.radians(self.absolute_angle))
@@ -567,29 +585,12 @@ class xArm_Motion():
             waypoints.append(pose_goal)
 
         self.hook_waypoints = waypoints
-        plan_rot, fraction_rot = self.move_group.compute_cartesian_path(waypoints[1:], 0.01, jump_threshold=5)
-
-        if min([fraction_x1, fraction_y1, fraction_x2, fraction_rot]) > 0.95:
-            success = self.move_group.execute(plan_x1, wait=True)
-            if not success:
-                rospy.logerr("HookCorn failed. Unable to reach the goal.")
-                return HookCornResponse(success="ERROR")
-            
-            success = self.move_group.execute(plan_y1, wait=True)
-            if not success:
-                rospy.logerr("HookCorn failed. Unable to reach the goal.")
-                return HookCornResponse(success="ERROR")
-            
-            success = self.move_group.execute(plan_x2, wait=True)
-            if not success:
-                rospy.logerr("HookCorn failed. Unable to reach the goal.")
-                return HookCornResponse(success="ERROR")
-            
-            success = self.move_group.execute(plan_rot, wait=True)
-            if not success:
-                rospy.logerr("HookCorn failed. Unable to reach the goal.")
-                return HookCornResponse(success="ERROR")
+        plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        if fraction > 0.95:
+            success = self.move_group.execute(plan, wait=True)
         else:
+            success = False
+        if not success:
             rospy.logerr("HookCorn failed. Unable to reach the goal.")
             return HookCornResponse(success="ERROR")
 
@@ -629,7 +630,14 @@ class xArm_Motion():
         tf2_ros.TransformListener(tfBuffer)
 
         self.hook_waypoints.reverse()
-        plan_rot, fraction_rot = self.move_group.compute_cartesian_path(self.hook_waypoints[1:], 0.01, jump_threshold=5)
+        plan, fraction = self.move_group.compute_cartesian_path(self.hook_waypoints[1:], 0.01, jump_threshold=5)
+        if fraction > 0.95:
+            success = self.move_group.execute(plan, wait=True)
+        else:
+            success = False
+        if not success:
+            rospy.logerr("UnHookCorn failed. Unable to reach the goal.")
+            return UnhookCornResponse(success="ERROR")
 
         pose = self.move_group.get_current_pose().pose
         quaternion = (
@@ -648,7 +656,14 @@ class xArm_Motion():
             pose_goal.position.x += pos
             waypoints.append(copy.deepcopy(pose_goal))
 
-        plan_x2, fraction_x2 = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        if fraction > 0.95:
+            success = self.move_group.execute(plan, wait=True)
+        else:
+            success = False
+        if not success:
+            rospy.logerr("UnHookCorn failed. Unable to reach the goal.")
+            return UnhookCornResponse(success="ERROR")
 
         waypoints = []
         for pos in np.arange(pos_res, 0.12, pos_res):
@@ -657,26 +672,14 @@ class xArm_Motion():
             pose_goal.position.y += pos
             waypoints.append(copy.deepcopy(pose_goal))
 
-        plan_y1, fraction_y1 = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
-
-        if min([fraction_y1, fraction_x2, fraction_rot]) > 0.95:
-            success = self.move_group.execute(plan_rot, wait=True)
-            if not success:
-                rospy.logerr("HookCorn failed. Unable to reach the goal.")
-                return HookCornResponse(success="ERROR")
-            
-            success = self.move_group.execute(plan_x2, wait=True)
-            if not success:
-                rospy.logerr("HookCorn failed. Unable to reach the goal.")
-                return HookCornResponse(success="ERROR")
-            
-            success = self.move_group.execute(plan_y1, wait=True)
-            if not success:
-                rospy.logerr("HookCorn failed. Unable to reach the goal.")
-                return HookCornResponse(success="ERROR")
+        plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
+        if fraction > 0.95:
+            success = self.move_group.execute(plan, wait=True)
         else:
-            rospy.logerr("HookCorn failed. Unable to reach the goal.")
-            return HookCornResponse(success="ERROR")
+            success = False
+        if not success:
+            rospy.logerr("UnHookCorn failed. Unable to reach the goal.")
+            return UnhookCornResponse(success="ERROR")
 
         self.state = "CORN_OFFSET"
         return UnhookCornResponse(success="DONE")
