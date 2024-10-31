@@ -39,6 +39,7 @@ class xArm_Motion():
 
         # Internal variables
         self.state = "HOME"
+        self.intermediate_pose = None
         # Angle of xArm relative to the cornstalk
         self.absolute_angle = 0 
 
@@ -214,8 +215,14 @@ class xArm_Motion():
             return GoHomeResponse(success="ERROR")
         elif self.state in ["clean", "cal_low", "cal_high"]:
             self.GoEMPlane()
-        # elif self.state == "LookatCorn":
-        #     self.arm.set_position_aa(axis_angle_pose=[0, -221.5, 0, 6.6, 0, 0], speed=30, relative=True, wait=True)
+        
+        if self.intermediate_pose is not None:
+            self.move_group.set_joint_value_target(self.intermediate_pose)
+            success = self.move_group.go(self.intermediate_pose, wait=True)
+            self.move_group.stop()
+            self.move_group.clear_pose_targets()
+
+            self.intermediate_pose = None
 
         if self.verbose: rospy.loginfo('Going to Home Position')
 
@@ -443,9 +450,9 @@ class xArm_Motion():
         self.move_group.set_pose_target(self.pose_goal)
 
         if req.grasp_point.x <= 0.2:
-            joint_goal = np.deg2rad([-4.7, -110, -48, -85.6, 88.2, -68])
-            self.move_group.set_joint_value_target(joint_goal)
-            success = self.move_group.go(joint_goal, wait=True)
+            self.intermediate_pose = np.deg2rad([-4.7, -110, -48, -85.6, 88.2, -68])
+            self.move_group.set_joint_value_target(self.intermediate_pose)
+            success = self.move_group.go(self.intermediate_pose, wait=True)
             self.move_group.stop()
             self.move_group.clear_pose_targets()
     
