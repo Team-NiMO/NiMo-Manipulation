@@ -104,6 +104,7 @@ class xArm_Motion():
             # Setup ground plane
             p = geometry_msgs.msg.PoseStamped()
             p.header.frame_id = frame
+            # p.pose.position.z = 0.78
             p.pose.position.z = 0.82
             self.scene.add_plane("ground", p)
 
