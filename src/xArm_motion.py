@@ -104,8 +104,8 @@ class xArm_Motion():
             # Setup ground plane
             p = geometry_msgs.msg.PoseStamped()
             p.header.frame_id = frame
-            # p.pose.position.z = 0.78
-            p.pose.position.z = 0.82
+            p.pose.position.z = 0.75
+            # p.pose.position.z = 0.82
             self.scene.add_plane("ground", p)
 
             # Setup amiga's driver wheel 
@@ -129,16 +129,16 @@ class xArm_Motion():
             p.header.frame_id = frame
             p.pose.position.x = -(0.4953 + 0.3048/2)
             p.pose.position.y = 0
-            p.pose.position.z = 0.0635 / 2
-            self.scene.add_box('parFrame', p, size=(0.3048, 1.778, 0.0635))
+            p.pose.position.z = 0.038 / 2
+            self.scene.add_box('parFrame', p, size=(0.3048, 1.778, 0.038))
 
             # Setup perpendicular frame box (frame holding xArm6)
             p = geometry_msgs.msg.PoseStamped()
             p.header.frame_id = frame
             p.pose.position.x = -(1 / 2 - 0.18415)
             p.pose.position.y = 0
-            p.pose.position.z = -0.0635 / 2
-            self.scene.add_box('perpFrame', p, size=(1, 0.3048, 0.0635))
+            p.pose.position.z = -0.038 / 2
+            self.scene.add_box('perpFrame', p, size=(1, 0.3048, 0.038))
 
         elif self.base_collision == "none":
             pass
@@ -255,7 +255,8 @@ class xArm_Motion():
         if self.verbose: rospy.loginfo('Going to LookatCorn Position')
 
         joint_goal = self.move_group.get_current_joint_values()
-        joint_goal = np.deg2rad([-90, -112.1, -64.5, 0, 80, -90])
+        # joint_goal = np.deg2rad([-90, -112.1, -64.5, 0, 80, -90])
+        joint_goal = np.deg2rad([-90, -116, -33.7, 0, 60, -90])
 
         self.move_group.set_joint_value_target(joint_goal)
         success = self.move_group.go(joint_goal, wait=True)
@@ -289,7 +290,8 @@ class xArm_Motion():
         
         # Adjust Joint-5 relative to LookatCorn: left (angle > 90°), right (angle < 90°).
         joint_goal = self.move_group.get_current_joint_values()
-        joint_goal = np.deg2rad([-90, -112.1, -64.5, 0-req.joint_angle, 80, -90])
+        # joint_goal = np.deg2rad([-90, -112.1, -64.5, 0-req.joint_angle, 80, -90])
+        joint_goal = np.deg2rad([-90-req.joint_angle, -116, -33.7, 0, 60, -90])
 
         self.move_group.set_joint_value_target(joint_goal)
         success = self.move_group.go(joint_goal, wait=True)
