@@ -104,7 +104,7 @@ class xArm_Motion():
             # Setup ground plane
             p = geometry_msgs.msg.PoseStamped()
             p.header.frame_id = frame
-            p.pose.position.z = 0.75
+            p.pose.position.z = 0.8
             # p.pose.position.z = 0.82
             self.scene.add_plane("ground", p)
 
@@ -593,9 +593,11 @@ class xArm_Motion():
             success = self.move_group.execute(plan, wait=True)
         else:
             success = False
+            self.hook_waypoints = None
         if not success:
             rospy.logerr("HookCorn failed. Unable to reach the goal.")
-            return HookCornResponse(success="ERROR")
+            self.state = "CORN_HOOK"
+            return HookCornResponse(success="DONE")
 
         pose = self.move_group.get_current_pose().pose
         quaternion = (
@@ -632,15 +634,17 @@ class xArm_Motion():
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
         tf2_ros.TransformListener(tfBuffer)
 
-        self.hook_waypoints.reverse()
-        plan, fraction = self.move_group.compute_cartesian_path(self.hook_waypoints[1:], 0.01, jump_threshold=5)
-        if fraction > 0.95:
-            success = self.move_group.execute(plan, wait=True)
-        else:
-            success = False
-        if not success:
-            rospy.logerr("UnHookCorn failed. Unable to reach the goal.")
-            return UnhookCornResponse(success="ERROR")
+        rospy.logwarn(self.hook_waypoints)
+        if self.hook_waypoints is not None:
+            self.hook_waypoints.reverse()
+            plan, fraction = self.move_group.compute_cartesian_path(self.hook_waypoints[1:], 0.01, jump_threshold=5)
+            if fraction > 0.95:
+                success = self.move_group.execute(plan, wait=True)
+            else:
+                success = False
+            if not success:
+                rospy.logerr("UnHookCorn failed. Unable to reach the goal.")
+                return UnhookCornResponse(success="ERROR")
 
         pose = self.move_group.get_current_pose().pose
         quaternion = (
