@@ -41,6 +41,7 @@ class xArm_Motion():
         self.state = "STOW" # The state of the xArm to restrict invalid movements
         self.intermediate_pose = None # Intermediate pose needed to get to cornstalk
         self.absolute_angle = 0 # Angle of xArm relative to the cornstalk
+        self.hook_waypoints = None
 
         self.broadcaster = tf2_ros.StaticTransformBroadcaster()
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
@@ -370,13 +371,15 @@ class xArm_Motion():
                     return GoEMResponse(success="ERROR")
 
             # Joint angles corresponding to end-effector at the cleaning nozzle
-            joint_goal = np.deg2rad([-125.1, 85, -74.8, 55.2, -96.5, -87.3])
+            # joint_goal = np.deg2rad([-125.1, 85, -74.8, 55.2, -96.5, -87.3])
+            joint_goal = np.deg2rad([-123.3, 84.9, -73.3, 57.1, -97, -85.9])
 
         elif req.id == "cal_low":
             if self.verbose: rospy.loginfo("Going to Low Calibration Nozzle")
 
             # Joint angles corresponding to end-effector at the low calibration nozzle
-            joint_goal = np.deg2rad([-115.3, 89.1, -96, 64.4, -87.6, -102.1])
+            # joint_goal = np.deg2rad([-115.3, 89.1, -96, 64.4, -87.6, -102.1])
+            joint_goal = np.deg2rad([-113.8, 88.7, -94.5, 65.8, -88.2, -101.2])
 
         elif req.id == "cal_high":
             if self.verbose: rospy.loginfo("Going to High Calibration Nozzle")
@@ -393,7 +396,8 @@ class xArm_Motion():
                     return GoEMResponse(success="ERROR")
             
             # Joint angles corresponding to end-effector at the high calibration nozzle
-            joint_goal = np.deg2rad([-108.7, 110.3, -149.4, 73, -76.8, -129.8])
+            # joint_goal = np.deg2rad([-108.7, 110.3, -149.4, 73, -76.8, -129.8])
+            joint_goal = np.deg2rad([-107.7, 106.5, -141.4, 72.9, -78.6, -125.8])
 
         self.move_group.set_joint_value_target(joint_goal)
         success = self.move_group.go(joint_goal, wait=True)
@@ -439,7 +443,9 @@ class xArm_Motion():
         self.pose_goal.position.z = req.grasp_point.z - delta.y
         self.move_group.set_pose_target(self.pose_goal)
 
-        if req.grasp_point.x <= -0.2:
+        pose = self.move_group.get_current_pose().pose
+
+        if req.grasp_point.x <= -0.1 and pose.position.x >= 0.1:
             self.intermediate_pose = np.deg2rad([-4.7, -110, -48, -85.6, 88.2, -68])
             self.move_group.set_joint_value_target(self.intermediate_pose)
             success = self.move_group.go(self.intermediate_pose, wait=True)
@@ -486,7 +492,7 @@ class xArm_Motion():
         pose_goal = self.robot.get_link('link_eef').pose().pose
 
         pos_res = 0.01 # Resolution in m 
-        deg_res = 1.0 # Resolution in degrees
+        deg_res = 2.0 # Resolution in degrees
 
         waypoints = []
         for pos in np.arange(-pos_res, -0.085, -pos_res):
@@ -505,7 +511,7 @@ class xArm_Motion():
             return HookCornResponse(success="ERROR")
 
         waypoints = []
-        for pos in np.arange(-pos_res, -0.12, -pos_res):
+        for pos in np.arange(-pos_res, -0.14, -pos_res):
             pose_goal = self.move_group.get_current_pose().pose
 
             pose_goal.position.y += pos
@@ -549,55 +555,56 @@ class xArm_Motion():
         euler = list(tf_conversions.transformations.euler_from_quaternion(quaternion))
         init = -np.rad2deg(euler[2])
 
-        waypoints = []
-        req.insert_angle += (-1) ** (1 + int(-req.insert_angle < 0)) if req.insert_angle != 0 else 0 # -1 if negative, 1 if positive, 0 if 0
-        self.absolute_angle = req.insert_angle
-        deg_res = -deg_res if -self.absolute_angle > 0 else deg_res
-        radius = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
-        for ang in np.arange(init, self.absolute_angle, deg_res):
+        if abs(req.insert_angle) > 0:
+            waypoints = []
+            req.insert_angle += (-1) ** (1 + int(-req.insert_angle < 0)) if req.insert_angle != 0 else 0 # -1 if negative, 1 if positive, 0 if 0
+            self.absolute_angle = req.insert_angle
+            deg_res = -deg_res if -self.absolute_angle > 0 else deg_res
+            radius = tfBuffer.lookup_transform('link_eef', 'gripper', rospy.Time(), rospy.Duration(3.0)).transform.translation.z
+
             pose_goal = self.move_group.get_current_pose().pose
             x_curr = pose_goal.position.x
             y_curr = pose_goal.position.y
-
-            c_x = x_curr - (radius) * np.sin(np.radians(self.absolute_angle))
-            c_y = y_curr - (radius) * np.cos(np.radians(self.absolute_angle))
-
-            # Determine the offset to move in x and y
-            x_pos = c_x + (radius) * np.sin(np.radians(ang + self.absolute_angle))
-            y_pos = c_y + (radius) * np.cos(np.radians(ang + self.absolute_angle))
-            del_x, del_y = (x_pos-x_curr), (y_pos-y_curr)
-            
-            # Update orientation
-            quaternion = (
+            c_x = x_curr - (radius) * np.sin(np.radians(init))
+            c_y = y_curr - (radius) * np.cos(np.radians(init))
+            quaternion_curr = (
                 pose_goal.orientation.x,
                 pose_goal.orientation.y,
                 pose_goal.orientation.z,
                 pose_goal.orientation.w 
             )
-            euler = list(tf_conversions.transformations.euler_from_quaternion(quaternion))
-            euler[2] += np.deg2rad(-ang)
-            quaternion = tf_conversions.transformations.quaternion_from_euler(euler[0], euler[1], euler[2])
-            
-            pose_goal.position.x += del_x
-            pose_goal.position.y += del_y
-            pose_goal.orientation.x = quaternion[0]
-            pose_goal.orientation.y = quaternion[1]
-            pose_goal.orientation.z = quaternion[2]
-            pose_goal.orientation.w = quaternion[3]
 
-            waypoints.append(pose_goal)
+            for ang in np.arange(init, self.absolute_angle, deg_res):
+                # Determine the offset to move in x and y
+                x_pos = c_x + (radius) * np.sin(np.radians(ang))
+                y_pos = c_y + (radius) * np.cos(np.radians(ang))
+                
+                # Update orientation
+                euler = list(tf_conversions.transformations.euler_from_quaternion(quaternion_curr))
+                euler[2] += np.deg2rad(-ang)
+                rospy.logwarn(np.rad2deg(euler[2]))
+                quaternion = tf_conversions.transformations.quaternion_from_euler(euler[0], euler[1], euler[2])
+                
+                pose_goal.position.x = x_pos
+                pose_goal.position.y = y_pos
+                pose_goal.orientation.x = quaternion[0]
+                pose_goal.orientation.y = quaternion[1]
+                pose_goal.orientation.z = quaternion[2]
+                pose_goal.orientation.w = quaternion[3]
 
-        self.hook_waypoints = waypoints
-        plan, fraction = self.move_group.compute_cartesian_path(waypoints, 0.01, jump_threshold=5)
-        if fraction > 0.95:
-            success = self.move_group.execute(plan, wait=True)
-        else:
-            success = False
-            self.hook_waypoints = None
-        if not success:
-            rospy.logerr("HookCorn failed. Unable to reach the goal.")
-            self.state = "CORN_HOOK"
-            return HookCornResponse(success="DONE")
+                waypoints.append(copy.deepcopy(pose_goal))
+
+            self.hook_waypoints = waypoints
+            plan, fraction = self.move_group.compute_cartesian_path(waypoints[1:], 0.01, jump_threshold=5)
+            if fraction > 0.95:
+                success = self.move_group.execute(plan, wait=True)
+            else:
+                success = False
+                self.hook_waypoints = None
+            if not success:
+                rospy.logerr("HookCorn failed. Unable to reach the goal.")
+                self.state = "CORN_HOOK"
+                return HookCornResponse(success="DONE")
 
         pose = self.move_group.get_current_pose().pose
         quaternion = (
@@ -634,12 +641,12 @@ class xArm_Motion():
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
         tf2_ros.TransformListener(tfBuffer)
 
-        rospy.logwarn(self.hook_waypoints)
-        if self.hook_waypoints is not None:
+        if self.hook_waypoints is not None and len(self.hook_waypoints) > 0:
             self.hook_waypoints.reverse()
             plan, fraction = self.move_group.compute_cartesian_path(self.hook_waypoints[1:], 0.01, jump_threshold=5)
             if fraction > 0.95:
                 success = self.move_group.execute(plan, wait=True)
+                self.hook_waypoints = None
             else:
                 success = False
             if not success:
@@ -673,7 +680,7 @@ class xArm_Motion():
             return UnhookCornResponse(success="ERROR")
 
         waypoints = []
-        for pos in np.arange(pos_res, 0.12, pos_res):
+        for pos in np.arange(pos_res, 0.14, pos_res):
             pose_goal = self.move_group.get_current_pose().pose
 
             pose_goal.position.y += pos
