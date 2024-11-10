@@ -62,7 +62,7 @@ class xArm_Motion():
         if self.verbose: rospy.loginfo('Waiting for service calls...')        
     
     @classmethod
-    def setupCollisions(self):
+    def setupCollisions(self, corn_wall=False):
         '''
         Setup collision boxes and planes for environment and end effector
         '''
@@ -70,6 +70,15 @@ class xArm_Motion():
         # Clear the scene of previous objects
         self.scene.remove_world_object()
         frame = self.robot.get_planning_frame()
+
+        # Setup wall for intersecting corn # GO EM + LOOK AT CORN
+        if corn_wall:
+            p = geometry_msgs.msg.PoseStamped()
+            p.header.frame_id = frame
+            p.pose.position.x = 0
+            p.pose.position.y = -0.38
+            p.pose.position.z = 0.82 - 0.3 / 2
+            self.scene.add_box('cornWall', p, size=(2, 0.01, 0.3))
 
         if self.base_collision == "tabletop":
             # Setup ground plane
@@ -237,6 +246,8 @@ class xArm_Motion():
         self.state = "HOME"
         self.absolute_angle = 0
 
+        self.setupCollisions()
+
         return GoHomeResponse(success="DONE")
     
     @classmethod
@@ -254,6 +265,8 @@ class xArm_Motion():
             return LookatCornResponse(success="ERROR")
 
         if self.verbose: rospy.loginfo('Going to LookatCorn Position')
+
+        self.setupCollisions(True)
 
         joint_goal = self.move_group.get_current_joint_values()
         # joint_goal = np.deg2rad([-90, -112.1, -64.5, 0, 80, -90])
@@ -315,6 +328,8 @@ class xArm_Motion():
         '''
 
         if self.verbose: rospy.loginfo('Going to External Mechanisms Plane')
+
+        self.setupCollisions(True)
 
         joint_goal = self.move_group.get_current_joint_values()
         joint_goal = np.deg2rad([-90, 41.5, -40.3, 0, -88.3, -90])
