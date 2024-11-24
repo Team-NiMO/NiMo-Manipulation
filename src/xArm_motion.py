@@ -59,10 +59,12 @@ class xArm_Motion():
 
         self.setupCollisions()
 
+        self.graspY = None
+
         if self.verbose: rospy.loginfo('Waiting for service calls...')        
     
     @classmethod
-    def setupCollisions(self, corn_wall=False):
+    def setupCollisions(self, corn_wall=False, y=-0.38):
         '''
         Setup collision boxes and planes for environment and end effector
         '''
@@ -76,7 +78,7 @@ class xArm_Motion():
             p = geometry_msgs.msg.PoseStamped()
             p.header.frame_id = frame
             p.pose.position.x = 0
-            p.pose.position.y = -0.38
+            p.pose.position.y = y 
             p.pose.position.z = 0.82 - 0.3 / 2
             self.scene.add_box('cornWall', p, size=(2, 0.01, 0.3))
 
@@ -96,7 +98,7 @@ class xArm_Motion():
             self.scene.add_plane("table", p)
         
         elif self.base_collision == "janice_tabletop":
-            # Setup ground plane
+            # Setup ground planef
             p = geometry_msgs.msg.PoseStamped()
             p.header.frame_id = frame
             p.pose.position.z = 0.9
@@ -114,8 +116,8 @@ class xArm_Motion():
             # Setup ground plane
             p = geometry_msgs.msg.PoseStamped()
             p.header.frame_id = frame
-            p.pose.position.z = 0.8
-            # p.pose.position.z = 0.82
+            # p.pose.position.z = 0.8
+            p.pose.position.z = 0.82
             self.scene.add_plane("ground", p)
 
             # Setup amiga's driver wheel 
@@ -444,6 +446,9 @@ class xArm_Motion():
             rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_OFFSET"))
             return GoCornResponse(success="ERROR")
 
+        self.setupCollisions(True, req.grasp_point.y)
+        self.graspY = req.grasp_point.y
+
         if self.verbose: rospy.loginfo("Going to the cornstalk {}, {}, {}".format(req.grasp_point.x, req.grasp_point.y, req.grasp_point.z)) 
 
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
@@ -503,6 +508,8 @@ class xArm_Motion():
             return HookCornResponse(success="ERROR")
 
         if self.verbose: rospy.loginfo("Hooking cornstalk")
+
+        self.setupCollisions()
 
         pose_goal = self.robot.get_link('link_eef').pose().pose
 
@@ -710,6 +717,8 @@ class xArm_Motion():
             rospy.logerr("UnHookCorn failed. Unable to reach the goal.")
             return UnhookCornResponse(success="ERROR")
 
+        self.setupCollisions(True, self.graspY)
+
         self.state = "CORN_OFFSET"
         return UnhookCornResponse(success="DONE")
 
@@ -718,7 +727,7 @@ class xArm_Motion():
         if self.state != "CORN_OFFSET":
             rospy.logerr("Invalid Command: Cannot move from {} to {}".format(self.state, "CORN_OFFSET"))
             return ArcCornResponse(success="ERROR")
-        
+
         if self.verbose: rospy.loginfo("Performing the arc motion")
         
         tfBuffer = tf2_ros.Buffer(rospy.Duration(3.0))
