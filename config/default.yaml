@@ -4,5 +4,5 @@ debug:
 arm:
   ip_address: '192.168.1.196' # The IP address of the controlbox for the xArm
 
-gripper:
-  approach: left             # [NOTE] Options: left, front
+collision:
+  base: amiga             # Options: tabletop, amiga, none

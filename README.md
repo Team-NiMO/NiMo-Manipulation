@@ -37,7 +37,6 @@ The service calls are listed below, more detail can be found in [services.md](/d
 - `GoHome` - Return the xArm to it's home position
 - `LookatCorn` - Rotate the end-effector down so the camera can see the base of the cornstalks
 - `GoCorn` - Move the end-effector to a position offset from the cornstalk
-- `UnGoCorn` - Move the end-effector from a position offset from the cornstalk to the home position
 - `ArcCorn` - Move the end-effector around the cornstalk by a specified angle
 - `HookCorn` - Hook the cornstalk at a specified angle
 - `UnHookCorn` - Move the end-effector from the grasp position to the home position
@@ -67,7 +66,7 @@ Since the external mechanisms are at a fixed location, the joint angles to reach
 - 1x High calibration (cal_high) nozzle
 
 ### Future Improvements
-- Consolidating UnGoCorn, UnHookCorn, GoHome
+- Consolidating UnHookCorn, GoHome
 - Better planning with MoveIt
 - Better collision checking for end effector
 - Setting camera and gripper transforms via config file

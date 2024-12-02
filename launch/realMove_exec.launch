@@ -16,16 +16,16 @@
 
   <arg name="add_gripper" default="false" />
   <arg name="add_vacuum_gripper" default="false" />
-  <arg name="add_other_geometry" default="false"/>
-  <arg name="geometry_type" default="box"/>
+  <arg name="add_other_geometry" default="true"/>
+  <arg name="geometry_type" default="mesh"/>
   <arg name="geometry_mass" default="0.1"/>
   <arg name="geometry_height" default="0.1"/>
   <arg name="geometry_radius" default="0.1"/>
   <arg name="geometry_length" default="0.1"/>
   <arg name="geometry_width" default="0.1"/>
-  <arg name="geometry_mesh_filename" default=""/>
-  <arg name="geometry_mesh_origin_xyz" default="'0 0 0'"/>
-  <arg name="geometry_mesh_origin_rpy" default="'0 0 0'"/>
+  <arg name="geometry_mesh_filename" default="package://nimo_manipulation/endEffectorNiMo.STL"/>
+  <arg name="geometry_mesh_origin_xyz" default="'0.0381 0.139 -0.006'"/>
+  <arg name="geometry_mesh_origin_rpy" default="'0 0 3.14'"/>
   <arg name="geometry_mesh_tcp_xyz" default="'0 0 0'"/>
   <arg name="geometry_mesh_tcp_rpy" default="'0 0 0'"/>
 
