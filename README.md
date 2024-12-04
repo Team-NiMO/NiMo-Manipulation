@@ -48,7 +48,7 @@ The service calls are listed below, more detail can be found in [services.md](/d
 Currently, the visualization shows the following:
 - A model of the xArm (also representing collision boundaries)
 - A model of the end-effector (also representing collision boundaries)
-- Collision boundaries for the Amiga Mobile Base
+- Collision boundaries for the Amiga Mobile Base and ground plane
 
 <img src="https://github.com/Team-NiMO/Nimo-Manipulation/blob/main/docs/collision_boxes.jpg" width="650">
 
