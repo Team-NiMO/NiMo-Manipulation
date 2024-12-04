@@ -34,24 +34,23 @@ roslaunch nimo_manipulation nimo_manipulation.launch
 ```
 
 The service calls are listed below, more detail can be found in [services.md](/docs/services.md):
+- `GoStow` - Position the xArm and end-effector for save travel during locomotion
 - `GoHome` - Return the xArm to it's home position
-- `LookatCorn` - Rotate the end-effector down so the camera can see the base of the cornstalks
+- `LookatCorn` - Position the end-effector so the camera can see the base of the cornstalks
+- `LookatAngle` - Rotate the end-effector by a specified angle so the camera can see a wider range of stalks
 - `GoCorn` - Move the end-effector to a position offset from the cornstalk
 - `ArcCorn` - Move the end-effector around the cornstalk by a specified angle
 - `HookCorn` - Hook the cornstalk at a specified angle
 - `UnHookCorn` - Move the end-effector from the grasp position to the home position
 - `GoEM` - Move the end-effector to the specified pump
-- Replace [NOT IMPLEMENTED]
-- Stow [NOT IMPLEMENTED]
-- LookAtAngle?
 
 ## Visualization
-Currently, the visualization shows the model of the arm with a set of selected frames:
-- `camera_link` - The camera frame
-- `gripper` - The frame representing the center of the gripper (where the cornstalk should be for insertion)
-- `corn_cam` - The targeted grasp point.
+Currently, the visualization shows the following:
+- A model of the xArm (also representing collision boundaries)
+- A model of the end-effector (also representing collision boundaries)
+- Collision boundaries for the Amiga Mobile Base
 
-<img src="https://github.com/Team-NiMO/Nimo-Manipulation/blob/main/docs/arm_viz.png" width="650">
+<img src="https://github.com/Team-NiMO/Nimo-Manipulation/blob/main/docs/collision_boxes.jpg" width="650">
 
 Note: The visualization is inverted because the arm is mounted upside-down.
 
@@ -66,9 +65,6 @@ Since the external mechanisms are at a fixed location, the joint angles to reach
 - 1x High calibration (cal_high) nozzle
 
 ### Future Improvements
-- Consolidating UnHookCorn, GoHome
-- Better planning with MoveIt
-- Better collision checking for end effector
 - Setting camera and gripper transforms via config file
 
 ## Common Issues
@@ -85,3 +81,7 @@ In order to minimize errors, the transitions between states are limited. This er
 In some cases, when RViz is opened, the model in the visualization does not have the same configuration as the real xArm. This means that there is some sort of communication error between the arm and the computer. The connections to the arm should be checked and the manipulation node should be restarted.
 
 ## Acknowledgements
+- [Mark (Moonyoung) Lee](https://github.com/markmlee) for his assistance and advice
+- Dr. Oliver Kroemer for his assistance and advice
+- Dr. George Kantor for his assistance and advice
+- The rest of [Team NiMo](https://github.com/Team-NiMO) for their suppport and feedback
