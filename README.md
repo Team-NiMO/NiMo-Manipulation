@@ -68,10 +68,6 @@ Since the external mechanisms are at a fixed location, the joint angles to reach
 - Setting camera and gripper transforms via config file
 
 ## Common Issues
-**General Errors**
-
-While the xArm ROS package generally has descriptive error messages, additional messages are returned from the node giving specific error codes. The description for these codes can be found in the [xArm Python SDK](https://github.com/xArm-Developer/xArm-Python-SDK/blob/master/doc/api/xarm_api_code.md).
-
 **`Invalid Command: Cannot move from ... to ... via ...`** 
 
 In order to minimize errors, the transitions between states are limited. This error means that the commanded transition is not allowed.
